@@ -1,119 +1,206 @@
-# USDT/LKR P2P Rate Widget
+# LKR P2P Rate — Android app and home-screen widget
 
-A native macOS desktop widget that tracks the Binance P2P USDT/LKR rate, shows
-whether it is moving up or down, and charts history collected every 5 minutes.
+See the USDT/LKR P2P rate on your Android home screen. The app reads the
+public Binance P2P order book and shows the best rate you can actually get,
+with a trend chart, a converter, the live list of ads and rate alerts.
 
-Status: **working.** Collector and widget both shipped and verified running.
+- **Language:** Kotlin, with Jetpack Compose for the app and Jetpack Glance for the widget
+- **Runs on:** Android 8.0 (API 26) and newer, phones and tablets
+- **Package:** `dev.dfanso.lkrp2p` (debug builds: `dev.dfanso.lkrp2p.debug`)
 
-**Android:** an app with a resizable home-screen widget lives in
-[`android/`](android/README.md). It is a separate Kotlin port of the same logic.
-See the [design spec](docs/superpowers/specs/2026-09-07-p2p-lkr-widget-design.md)
-and the [implementation plan](docs/superpowers/plans/2026-09-07-p2p-lkr-widget.md).
+## Features
 
-## Why
+### Home-screen widget
 
-Binance P2P is where USDT/LKR price discovery actually happens, but the web page
-shows only a live snapshot. You cannot tell whether today's 330.66 is a good
-moment to sell or the bottom of a two-day slide.
+One widget, resizable in both directions from a 2x1 strip to full screen. It
+uses `SizeMode.Exact`, so every instance knows its real size and picks a layout:
 
-## How it reads the rate
+| Size | Layout |
+|---|---|
+| Short (under ~110dp tall) | Rate + trend chip, sparkline on the right if wide enough |
+| Medium | Title, big rate, "per 1 USDT" caption, chart (axis labels when tall enough) |
+| Tall (250dp+) | The full card: ₮ 1 / ↓↑ / Rs rate, Day-Week-Month control, chart with dashed gridlines |
 
-The P2P page is backed by a public, unauthenticated JSON endpoint, so no
-scraping is involved:
+Type scales with the widget's width, numerals shrink before they reach the
+currency badge, and corners follow the launcher's own widget radius.
 
-```
-POST https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search
-```
+Each widget remembers its own choices:
+- **Day / Week / Month** switches the chart window.
+- **↓↑** (or the title on smaller sizes) flips between the Sell and Buy rate.
+- **⟳** fetches now. Tapping anywhere else opens the app.
 
-The headline number is **not** the top row of the page. It is the best price from
-an ad that can actually fill your configured trade size. At the time of writing
-the top ad quoted 332.00 LKR but required a minimum order of 499,999 LKR
-(~1,500 USDT); the real tradeable rate for 500 USDT was 331.00. Filtering for
-fillability is the difference between a useful chart and one that spikes on ads
-nobody can trade.
+### The app
 
-## Install
+Three tabs, built so the everyday question — "what's the rate right now?" —
+needs no taps:
 
-```sh
-make install
-```
+- **Rate**: a Sell/Buy switch showing both live rates; a USDT ⇄ LKR converter
+  (starts at 1 USDT, quick amounts, ↓↑ swaps direction and keeps the numbers);
+  a chart you can press or drag to read any point; low/high/average, buy–sell
+  spread and market median; when the rate was last updated. Pull down to refresh.
+- **Ads**: the live order book for any order size, with the best usable ad
+  marked, ads that can't take your order folded away with the reason, and a
+  button to open Binance P2P.
+- **Alerts**: "tell me when the sell rate rises to X", pre-filled from the live
+  rate, with a clear Watching / Reached / Paused status for each alert.
+- **Settings** (gear on the Rate tab): order size, payment method, how often to
+  check, which side new widgets show, and an Add widget button.
 
-That signs the build, verifies it, copies it with `ditto`, re-verifies the
-installed copy, and launches it. Use nothing else to install.
+## How the rate is worked out
 
-`make build` is a compile check only — it passes `CODE_SIGNING_ALLOWED=NO`,
-which yields an ad-hoc bundle with **no entitlements**. macOS silently refuses
-to register an unsandboxed widget extension (`pkd: plug-ins must be sandboxed`),
-so the widget never appears in the gallery and nothing tells you why.
-`make verify` is the check that catches it.
+Everything shows the price of **1 USDT**. Which ad that price comes from depends
+on the **order size** in Settings (default 500 USDT): the rate is the best ad
+that will accept an order that big. P2P ads have LKR minimums, and the top ad
+often needs far more than most people trade, so quoting it would be misleading.
+Set the order size to roughly what you trade; each size keeps its own history.
 
-The app has no Dock or menu bar icon by design. It registers itself as a login
-item and collects a sample every five minutes while running. Re-launching it
-from Spotlight opens the detail window. To add the widget: right-click the
-desktop, choose Edit Widgets, search for "USDT/LKR Rate".
+- **Sell** = you give USDT and receive LKR (best = highest price).
+- **Buy** = you pay LKR and receive USDT (best = lowest price).
+- Binance pins "Promoted Ad" rows above the book regardless of price, so ads
+  are sorted best-first before the fillable one is picked.
 
-Confirm collection is working:
+## Background updates
 
-```sh
-sqlite3 "$HOME/Library/Group Containers/UN798LFFKG.group.dev.dfanso.p2pmonitor/p2p.sqlite" \
-  'SELECT ts, side, amount_usdt, fillable_price, top_price, adv_name
-   FROM samples ORDER BY ts DESC LIMIT 3;'
-```
+WorkManager checks both sides every **15 minutes** (30 or 60 in Settings) with
+**no notification**. 15 minutes is the shortest interval Android allows for
+background work; anything faster needs a foreground service with a permanent
+notification, costs battery and runs into Play's foreground-service rules.
+Doze and battery saver can stretch the interval while the phone is idle.
 
-`fillable_price` should be at or below `top_price`. On the first verified run it
-read 330.70 against a top of book of 332.00 — a 1.30 LKR gap per unit that a
-naive reading of the page would have got wrong.
+On top of that the app refreshes when you open it (if the rate is over a minute
+old), when you pull down, and when you tap ⟳ on a widget. Both sides are
+collected each time so a widget can flip without a gap in its history. If the
+newest rate is over 45 minutes old the widget says **Stale** in amber.
 
-## App icon
+History is kept on the phone for 30 days in SQLite and never leaves it.
 
-The icon is generated, not hand-drawn — `make icon` runs
-`tools/make-icon.swift`, which renders all ten asset-catalog slots (seven
-unique sizes) with Core Graphics. The PNGs are committed so a fresh clone
-builds without running it.
-
-A rising sparkline over an emerald ground, with the Sri Lankan rupee glyph
-watermarked behind. It carries no Binance or Tether marks: those are
-trademarks, and using them would misrepresent this as an official client.
-
-At 16px a hairline stroke and the watermark both turn to mud, so the renderer
-has three tiers — full detail at 64px and up, watermark dropped and stroke
-thickened below that, and a simplified four-point line at 16px.
-
-**The artwork is full bleed on purpose.** macOS 26 composites a legacy `.icns`
-onto its own rounded container, so drawing our own squircle with a transparent
-margin nested our shape inside Apple's and produced a small icon floating in a
-dark plate. The renderer fills the canvas and lets the system apply the shape
-and shadow; content stays inside an 80% safe area because the system rounds the
-corners. To check what macOS actually resolves rather than what we wrote:
-
-```sh
-swift tools/resolve-icon.swift /Applications/P2PMonitor.app /tmp/icon.png
-```
-
-## Layout
+## Project layout
 
 | Path | Contents |
 |---|---|
-| `P2PKit/` | Shared Swift package: API client, models, store, metrics, alerts |
-| `P2PMonitor/` | App target: 5-minute poller, settings, detail window |
-| `P2PWidget/` | Widget extension (read-only) |
-| `fixtures/` | Recorded API responses driving the offline test suite |
-| `tools/` | `p2p.sh`, a standalone shell client for poking at the endpoint |
-| `android/` | Android app and home-screen widget (Kotlin, Compose, Glance) |
+| `app/src/main/java/dev/dfanso/lkrp2p/core/` | Wire format, API client, fillable/median metrics, trend, converter, edge-triggered alerts |
+| `.../data/` | SQLite store, settings, the poller |
+| `.../work/` | WorkManager collector and alert notifications |
+| `.../render/` | Background and chart painters shared by the widget and the app |
+| `.../widget/` | Jetpack Glance widget with three size-dependent layouts |
+| `.../ui/` | Compose app: Rate, Ads and Alerts tabs plus Settings |
+| `app/src/test/` | Unit tests against recorded Binance responses, and render tests |
+| `play/` | Store icon (512px), feature graphic (1024x500) and its generator |
+| `PRIVACY.md` | Privacy policy text to host for the Play listing |
 
-## tools/p2p.sh
+## Build
 
-Queries the endpoint directly, no build required:
+Requirements: JDK 17+ and the Android SDK (platform 36). Android Studio bundles
+both — open this folder in it and press Run. From a terminal:
 
 ```sh
-./tools/p2p.sh SELL 10   # ads for you to sell USDT into
-./tools/p2p.sh BUY 10    # ads for you to buy USDT from
+./gradlew testDebugUnitTest   # unit tests + screenshot renders
+./gradlew assembleDebug       # app/build/outputs/apk/debug/app-debug.apk
+./gradlew lintDebug           # Android lint
 ```
 
-## Requirements
+`testDebugUnitTest` also renders the real widget at six home-screen sizes
+(2x1 strip to tall 4x5) with Robolectric into `app/build/widget-shots/`, and the
+four app screens into `app/build/app-shots/`, so layout changes can be checked
+without a phone. The render tests need an x64 JDK.
 
-macOS 14+ (developed on 26.6), Xcode 26+, `xcodegen` (`brew install xcodegen`),
-and a signing identity whose team can carry an App Group entitlement.
+`local.properties` (git-ignored) must point at the SDK, for example
+`sdk.dir=C\:/Users/you/AppData/Local/Android/Sdk`.
 
-The Xcode project is generated, not committed. Run `make project` after cloning,
-and again after adding or renaming any source file.
+### Install on your own phone
+
+1. On the phone: Settings → About phone → tap **Build number** 7 times →
+   back to Settings → Developer options → enable **USB debugging**.
+2. Connect by USB and run `./gradlew installDebug`, **or** copy `app-debug.apk`
+   to the phone and open it (allow "install unknown apps" for your file manager).
+3. Open **LKR P2P Rate** once, then long-press the home screen → Widgets →
+   **USDT/LKR Rate**, or use **Add widget** in the app's Settings.
+4. If your phone has aggressive battery management (Xiaomi, Oppo, Vivo, Huawei,
+   Samsung "sleeping apps"), set the app's battery usage to **Unrestricted**,
+   otherwise background updates may stop.
+
+The debug build installs side by side with the Play version.
+
+## Release build and Google Play
+
+### 1. Create an upload key (once — back it up; losing it is painful)
+
+```sh
+keytool -genkeypair -v -keystore upload-key.jks -alias upload \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Then create `keystore.properties` next to it (git-ignored, as is the `.jks`):
+
+```properties
+storeFile=upload-key.jks
+storePassword=...
+keyAlias=upload
+keyPassword=...
+```
+
+### 2. Build the bundle
+
+```sh
+./gradlew bundleRelease   # app/build/outputs/bundle/release/app-release.aab
+```
+
+Bump `versionCode` (and `versionName`) in `app/build.gradle.kts` for every upload.
+The **application ID `dev.dfanso.lkrp2p` is permanent** once published — change
+it now if you want a different one.
+
+### 3. Play Console
+
+1. Create a developer account at <https://play.google.com/console> (one-time
+   US$25; identity verification takes a few days).
+2. **Create app** → name "LKR P2P Rate", App, Free.
+3. Upload `app-release.aab` and enrol in **Play App Signing** (default). Google
+   holds the real signing key; yours is only the upload key.
+4. **Store listing**: icon `play/icon-512.png`, feature graphic
+   `play/feature-graphic.png`, at least 2 phone screenshots (the app and the home
+   screen with the widget), short and full description (suggested text below).
+5. **App content**:
+   - Privacy policy: host `PRIVACY.md` somewhere public (GitHub Pages or a public
+     gist works) and paste the URL. Fill in the contact email first.
+   - Data safety: *No data collected, no data shared.*
+   - Ads: No. Target audience: 18+. Content rating questionnaire: utility, no
+     objectionable content.
+   - Financial features declaration: the app displays rates only; it does not
+     trade, hold funds, or offer financial services.
+6. **Testing requirement for new personal accounts:** Google requires a closed
+   test with **at least 12 testers opted in for 14 continuous days** before you
+   can apply for production access. Organisation accounts are exempt. This is
+   the longest step.
+7. Promote to production and submit for review.
+
+Things that get rate apps rejected, and how this one avoids them: no Binance or
+Tether logos or names in the icon or title (the name is "LKR P2P Rate"; the
+listing may say *uses public Binance P2P data* and *not affiliated with
+Binance*); no claims of being an official or trading app; no "real-time" claims.
+
+### Suggested listing text
+
+**Short description (80 chars):**
+Live USDT/LKR P2P rate widget with trend chart and rate alerts.
+
+**Full description:**
+See the real USDT/LKR P2P rate right on your home screen.
+
+LKR P2P Rate reads the public P2P order book and shows the best rate you can
+actually get for your order size — not the top advert that needs a minimum you
+can't meet.
+
+• Resizable home-screen widget, from a slim strip to a full card
+• Day, week and month trend chart, right on the widget
+• Switch between selling and buying with one tap
+• USDT ⇄ LKR converter priced from real adverts
+• Full order book with the best usable advert highlighted
+• Alerts when the rate rises above or falls below your target
+• History stays on your phone. No account, no ads, no tracking.
+
+Uses public Binance P2P data. Not affiliated with Binance. Not financial advice.
+
+## Credits
+
+The data model and rate logic are ported from the macOS widget at
+[DFanso/p2p-lkr-widget](https://github.com/DFanso/p2p-lkr-widget).

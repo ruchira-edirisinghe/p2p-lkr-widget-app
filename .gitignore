@@ -1,27 +1,11 @@
-# macOS
-.DS_Store
-
-# Xcode
+.gradle/
 build/
-DerivedData/
-*.xcuserstate
-*.xcscmblueprint
-xcuserdata/
-*.moved-aside
-*.hmap
-*.ipa
-*.dSYM.zip
-*.dSYM
-
-# Swift Package Manager
-.build/
-.swiftpm/
-Package.resolved
-
-# Local runtime data (collector writes here outside the App Group during dev)
-*.sqlite
-*.sqlite-wal
-*.sqlite-shm
-
-# XcodeGen output (regenerate with `make project`)
-P2PMonitor.xcodeproj/
+local.properties
+.idea/
+*.iml
+.kotlin/
+captures/
+# Release signing: never commit the keystore or its passwords
+keystore.properties
+*.jks
+*.keystore

@@ -7,7 +7,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-// Release signing is read from android/keystore.properties, which is git-ignored.
+// Release signing is read from keystore.properties, which is git-ignored.
 // Without it, `bundleRelease` still builds but produces an unsigned bundle.
 val keystoreProps = Properties().apply {
     val file = rootProject.file("keystore.properties")

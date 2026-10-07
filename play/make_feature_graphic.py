@@ -1,8 +1,8 @@
 """Renders the 1024x500 Google Play feature graphic.
 
-    py android/play/make_feature_graphic.py
+    py play/make_feature_graphic.py
 
-Needs Pillow. Output: android/play/feature-graphic.png
+Needs Pillow. Output: play/feature-graphic.png
 """
 import math
 import os
