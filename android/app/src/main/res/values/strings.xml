@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<resources>
+    <string name="app_name">LKR P2P Rate</string>
+    <string name="widget_name">USDT/LKR Rate</string>
+    <string name="widget_description">Live USDT/LKR P2P rate with trend chart</string>
+    <string name="alert_channel_name">Rate alerts</string>
+    <string name="alert_channel_description">Notifies you when the rate crosses a threshold you set</string>
+    <string name="preview_title">P2P Rate · USDT/LKR</string>
+    <string name="preview_amount">₮ 500</string>
+    <string name="preview_total">Rs 165,350</string>
+</resources>

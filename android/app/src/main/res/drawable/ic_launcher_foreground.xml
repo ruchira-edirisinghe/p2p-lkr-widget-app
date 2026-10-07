@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The macOS icon's rising line, scaled into the adaptive-icon safe zone.
+     No exchange or token marks. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M25,67.6L33.6,62L42,69L51,56.4L58.4,60.4L66.4,48.4L73.6,53.6L81.6,39.6"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="5"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+</vector>

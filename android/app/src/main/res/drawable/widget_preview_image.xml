@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<!-- Pre-Android 12 widget pickers show a static image. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/widget_preview_bg" android:width="250dp" android:height="250dp" />
+    <item android:drawable="@drawable/preview_chart" android:left="16dp" android:right="16dp"
+        android:top="120dp" android:bottom="16dp" />
+</layer-list>

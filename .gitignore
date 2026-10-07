@@ -1,0 +1,27 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+*.xcscmblueprint
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Local runtime data (collector writes here outside the App Group during dev)
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# XcodeGen output (regenerate with `make project`)
+P2PMonitor.xcodeproj/
