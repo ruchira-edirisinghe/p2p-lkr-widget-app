@@ -1,5 +1,6 @@
 package dev.dfanso.lkrp2p.ui
 
+import android.Manifest
 import android.app.Application
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -7,15 +8,16 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.core.app.ApplicationProvider
+import dev.dfanso.lkrp2p.RenderSeed
 import dev.dfanso.lkrp2p.core.AlertRule
 import dev.dfanso.lkrp2p.core.AlertState
 import dev.dfanso.lkrp2p.core.MetricsEngine
-import dev.dfanso.lkrp2p.core.Sample
 import dev.dfanso.lkrp2p.core.Side
 import dev.dfanso.lkrp2p.core.ThresholdDirection
 import dev.dfanso.lkrp2p.core.WireFormat
@@ -25,19 +27,21 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import org.robolectric.shadows.ShadowLooper
 import java.io.File
-import kotlin.math.sin
 
 /**
- * Renders each app screen with realistic data into app/build/app-shots/ so
- * the UI can be reviewed without a phone. Tall screen so scrolling content fits.
+ * Renders the app's screens with realistic data into app/build/app-shots/ so
+ * the UI can be reviewed without a phone. The default size is a typical
+ * 412x915dp phone; the README images are built from these shots by
+ * docs/make_readme_images.py.
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [35], qualifiers = "w400dp-h1450dp-xxhdpi", application = Application::class)
+@Config(sdk = [35], qualifiers = "w412dp-h915dp-xxhdpi", application = Application::class)
 class AppScreensRenderTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private val app: Application = ApplicationProvider.getApplicationContext()
@@ -45,20 +49,27 @@ class AppScreensRenderTest {
     @Before
     fun seed() {
         val store = Store.get(app)
-        store.clearForTests()
+        RenderSeed.seed(store, days = 7)
         val now = System.currentTimeMillis() / 1000
-        for (i in 0 until 4 * 24 * 7) {
-            val price = 335.2 - 1.1 * sin(i / 18.0) + 0.35 * sin(i / 2.0) - i * 0.003
-            store.append(Sample(now - i * 900L, Side.SELL, 500, price, price + 1, price + 0.2, "Trader", 700.0, 1e4, 3e5))
-            store.append(Sample(now - i * 900L, Side.BUY, 500, price + 0.9, price + 0.5, price + 1, "Trader", 700.0, 1e4, 3e5))
+        for (side in Side.entries) {
+            val file = "lkr-${side.wire.lowercase()}-20260907.json"
+            val ads = WireFormat.decodeAds(javaClass.classLoader!!.getResource(file)!!.readText())
+            store.replaceSnapshot(side, MetricsEngine.bestFirst(ads, side), now - 120)
         }
-        val ads = WireFormat.decodeAds(javaClass.classLoader!!.getResource("lkr-sell-20260907.json")!!.readText())
-        store.replaceSnapshot(Side.SELL, MetricsEngine.bestFirst(ads, Side.SELL), now - 120)
-        store.upsertAlert(AlertRule(side = Side.SELL, amountUsdt = 500, threshold = 337.0, direction = ThresholdDirection.ABOVE), AlertState.ARMED, null)
-        store.upsertAlert(AlertRule(side = Side.BUY, amountUsdt = 500, threshold = 330.0, direction = ThresholdDirection.BELOW), AlertState.ARMED, null)
+        // One alert in each state the Alerts tab can show.
+        val size = RenderSeed.ORDER_SIZE
+        store.upsertAlert(AlertRule(side = Side.SELL, amountUsdt = size, threshold = 332.0, direction = ThresholdDirection.ABOVE), AlertState.ARMED, null)
+        store.upsertAlert(AlertRule(side = Side.SELL, amountUsdt = size, threshold = 331.5, direction = ThresholdDirection.BELOW), AlertState.TRIGGERED, now - 1800)
+        store.upsertAlert(AlertRule(side = Side.BUY, amountUsdt = size, threshold = 330.5, direction = ThresholdDirection.BELOW), AlertState.ARMED, null)
+        store.upsertAlert(AlertRule(side = Side.BUY, amountUsdt = 1_000, threshold = 333.0, direction = ThresholdDirection.ABOVE), AlertState.ARMED, null)
+        shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
     }
 
-    private fun shoot(name: String, content: @androidx.compose.runtime.Composable (MainViewModel, UiState) -> Unit) {
+    private fun shoot(
+        name: String,
+        prepare: (MainViewModel) -> Unit = {},
+        content: @Composable (MainViewModel, UiState) -> Unit,
+    ) {
         val vm = MainViewModel(app)
         compose.setContent {
             AppTheme {
@@ -67,11 +78,9 @@ class AppScreensRenderTest {
             }
         }
         // Let the ViewModel's IO loads land and recompose with them.
-        repeat(20) {
-            Thread.sleep(50)
-            ShadowLooper.idleMainLooper()
-            compose.waitForIdle()
-        }
+        settle()
+        prepare(vm)
+        settle()
         // captureToImage waits on a PixelCopy that Robolectric never delivers; draw the views directly.
         val root = compose.activity.window.decorView
         val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
@@ -80,11 +89,28 @@ class AppScreensRenderTest {
         File(out, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
-    @Test fun rate() = shoot("rate") { vm, s -> RateScreen(s, vm, onOpenSettings = {}) }
+    private fun settle() = repeat(20) {
+        Thread.sleep(50)
+        ShadowLooper.idleMainLooper()
+        compose.waitForIdle()
+    }
 
-    @Test fun ads() = shoot("ads") { vm, s -> AdsScreen(s, vm) }
+    @Test fun rate() = shoot("rate") { vm, _ -> App(vm, Tab.RATE) }
 
-    @Test fun alerts() = shoot("alerts") { vm, s -> AlertsScreen(s, vm) }
+    @Test fun ads() = shoot("ads") { vm, _ -> App(vm, Tab.ADS) }
 
-    @Test fun settings() = shoot("settings") { vm, s -> SettingsScreen(s, vm, onBack = {}) }
+    @Test fun alerts() = shoot("alerts") { vm, _ -> App(vm, Tab.ALERTS) }
+
+    @Test fun settings() = shoot("settings") { vm, _ -> App(vm, startInSettings = true) }
+
+    /** The converter working backwards from rupees. */
+    @Test fun rateFromLkr() = shoot("rate-lkr", prepare = { vm ->
+        vm.swapConverter()
+        vm.setConverterText("100000")
+    }) { vm, _ -> App(vm, Tab.RATE) }
+
+    /** The whole scrolling Rate page in one image. */
+    @Test
+    @Config(qualifiers = "w412dp-h1700dp-xxhdpi")
+    fun rateFullPage() = shoot("rate-full") { vm, s -> RateScreen(s, vm, onOpenSettings = {}) }
 }

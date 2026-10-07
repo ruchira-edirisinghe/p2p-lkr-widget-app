@@ -1,97 +1,341 @@
-# LKR P2P Rate — Android app and home-screen widget
+<h1 align="center">LKR P2P Rate</h1>
 
-See the USDT/LKR P2P rate on your Android home screen. The app reads the
-public Binance P2P order book and shows the best rate you can actually get,
-with a trend chart, a converter, the live list of ads and rate alerts.
+<p align="center">
+  <b>The USDT/LKR P2P rate on your Android home screen.</b><br>
+  A resizable widget and a companion app that read the public Binance P2P order book
+  and show the best rate you can <i>actually</i> get, with a trend chart, a converter,
+  the live list of ads, and rate alerts.
+</p>
 
-- **Language:** Kotlin, with Jetpack Compose for the app and Jetpack Glance for the widget
-- **Runs on:** Android 8.0 (API 26) and newer, phones and tablets
-- **Package:** `dev.dfanso.lkrp2p` (debug builds: `dev.dfanso.lkrp2p.debug`)
+<p align="center">
+  <img src="docs/images/hero.png" width="760" alt="The widget at three sizes on a home screen, next to the app's Rate screen">
+</p>
 
-## Features
+<p align="center">
+  Kotlin · Jetpack Compose · Jetpack Glance · Android 8.0+ · no account, no ads, no tracking
+</p>
 
-### Home-screen widget
+---
 
-One widget, resizable in both directions from a 2x1 strip to full screen. It
-uses `SizeMode.Exact`, so every instance knows its real size and picks a layout:
+## Contents
 
-| Size | Layout |
+- [At a glance](#at-a-glance)
+- [The widget](#the-widget)
+  - [Anatomy](#anatomy-of-the-full-widget)
+  - [Sizes and layouts](#sizes-and-layouts)
+  - [Day, Week, Month and Buy](#day-week-month-and-buy)
+  - [When the rate is out of date](#when-the-rate-is-out-of-date)
+  - [Adding a widget](#adding-a-widget)
+- [The app](#the-app)
+  - [Rate](#rate) · [Converter](#converter) · [Ads](#ads) · [Alerts](#alerts) · [Settings](#settings)
+- [How the rate is worked out](#how-the-rate-is-worked-out)
+- [How often it updates](#how-often-it-updates)
+- [Privacy](#privacy)
+- [For developers](#for-developers)
+  - [Project layout](#project-layout) · [Build](#build) · [Screenshots](#regenerating-the-screenshots) · [Install on your phone](#install-on-your-phone) · [Publish to Google Play](#publish-to-google-play)
+
+---
+
+## At a glance
+
+| | |
 |---|---|
-| Short (under ~110dp tall) | Rate + trend chip, sparkline on the right if wide enough |
-| Medium | Title, big rate, "per 1 USDT" caption, chart (axis labels when tall enough) |
-| Tall (250dp+) | The full card: ₮ 1 / ↓↑ / Rs rate, Day-Week-Month control, chart with dashed gridlines |
+| **What it shows** | The price of **1 USDT in Sri Lankan rupees** on Binance P2P, for selling and for buying |
+| **Where the price comes from** | The best ad that will accept your usual order size (500 USDT by default), not the headline ad with a minimum you can't meet |
+| **Widget** | One widget, resizable from a 2x1 strip to a full 4x4 card, with its own Day/Week/Month chart and Sell/Buy switch |
+| **App** | Rate, Ads and Alerts tabs plus Settings |
+| **Updates** | In the background every 15 minutes (30 or 60 if you prefer), with no notification; on demand when you open the app, pull down or tap ⟳ |
+| **Data** | 30 days of history kept on the phone only |
+| **Requirements** | Android 8.0 (API 26) or newer, phones and tablets |
 
-Type scales with the widget's width, numerals shrink before they reach the
-currency badge, and corners follow the launcher's own widget radius.
+---
 
-Each widget remembers its own choices:
-- **Day / Week / Month** switches the chart window.
-- **↓↑** (or the title on smaller sizes) flips between the Sell and Buy rate.
-- **⟳** fetches now. Tapping anywhere else opens the app.
+## The widget
 
-### The app
+### Anatomy of the full widget
 
-Three tabs, built so the everyday question — "what's the rate right now?" —
-needs no taps:
+<p align="center">
+  <img src="docs/images/widget-anatomy.png" width="620" alt="The full widget with numbered callouts">
+</p>
 
-- **Rate**: a Sell/Buy switch showing both live rates; a USDT ⇄ LKR converter
-  (starts at 1 USDT, quick amounts, ↓↑ swaps direction and keeps the numbers);
-  a chart you can press or drag to read any point; low/high/average, buy–sell
-  spread and market median; when the rate was last updated. Pull down to refresh.
-- **Ads**: the live order book for any order size, with the best usable ad
-  marked, ads that can't take your order folded away with the reason, and a
-  button to open Binance P2P.
-- **Alerts**: "tell me when the sell rate rises to X", pre-filled from the live
-  rate, with a clear Watching / Reached / Paused status for each alert.
-- **Settings** (gear on the Rate tab): order size, payment method, how often to
-  check, which side new widgets show, and an Add widget button.
+| # | Part | What it shows | What tapping it does |
+|---|---|---|---|
+| 1 | **Title** | "P2P Rate · USDT/LKR" | Opens the app |
+| 2 | **Last updated · ⟳** | The time of the newest rate. Turns amber and says **Stale** when it is too old (see [below](#when-the-rate-is-out-of-date)) | ⟳ fetches a fresh rate straight away |
+| 3 | **₮ 1** | The amount being priced: always 1 USDT | Opens the app |
+| 4 | **USDT** | The coin, with the Tether badge | Opens the app |
+| 5 | **↓↑ Sell rate · tap to switch** | Which side this widget shows | Flips this widget between the **Sell** and **Buy** rate |
+| 6 | **Trend chip** | Change from the first to the last point of the chart window. Green ▲ when the rate went up, red ▼ when it went down | Opens the app |
+| 7 | **Rs 331.00** | The rate: what 1 USDT is worth in rupees right now | Opens the app |
+| 8 | **LKR** | The currency, with the Sri Lankan flag | Opens the app |
+| 9 | **Day · Week · Month** | The chart window. The selected one is highlighted | Switches this widget's chart window |
+| 10 | **Chart** | The rate over the window: a mint line over a soft fill, dashed gridlines, and a dot on the newest point. Green when the window ends higher, red when it ends lower. Gaps in collection show as breaks, never as a made-up flat line | Opens the app |
+| 11 | **Time axis** | Hours for Day, weekdays for Week, dates for Month | Opens the app |
+
+Every widget remembers its own side and window, so you can keep a Sell widget and a
+Buy widget side by side, or one per chart window.
+
+### Sizes and layouts
+
+<p align="center">
+  <img src="docs/images/widget-sizes.png" width="760" alt="The widget at six home-screen sizes">
+</p>
+
+The widget is resizable in both directions. Every instance knows its exact size and
+picks the layout that fits:
+
+| Layout | When | What it shows |
+|---|---|---|
+| **Full card** | 250dp tall and 200dp wide or more (about 4x4 or 3x5 cells) | Everything in the anatomy above. Taller widgets give the chart more room; narrower ones shrink the type |
+| **Compact** | 110dp tall and 170dp wide or more (about 4x2 or 3x2 cells) | "USDT/LKR · Sell", the time and ⟳, the big rate, "per 1 USDT · sell rate", the trend chip and a chart (time labels appear when there is room). Tap the title to flip Sell/Buy |
+| **Strip / small** | Anything smaller (4x1, 2x1) | The side, the rate and the trend chip, plus a sparkline on the right when the strip is wide enough. Tap "Sell"/"Buy" to flip |
+
+Fitting rules that keep it readable on any phone:
+- Text sizes scale with the widget's width, and the big numerals shrink before they
+  would run into the currency badge.
+- Text is sized in dp, so the system font-size setting can't push it out of the
+  space it was measured for.
+- Corners follow your launcher's own widget radius, capped on short strips so they
+  don't turn into pills.
+- On a narrow 2x1 the trend moves up next to the label instead of being cut off.
+
+### Day, Week, Month and Buy
+
+<p align="center">
+  <img src="docs/images/widget-views.png" width="900" alt="The full widget showing Day, Week and Month charts and the Buy rate">
+</p>
+
+| Window | Covers | Each point is | Axis |
+|---|---|---|---|
+| **Day** | The last 24 hours | Every collected rate (about every 15 minutes) | Every 4 hours |
+| **Week** | The last 7 days | The average for each hour | Weekdays |
+| **Month** | The last 30 days | The average for each 6 hours | Weekly dates |
+
+The trend chip always compares the start of the selected window with now, so the
+same widget can read ▲ 0.37% on Day and ▲ 0.99% on Month.
+
+**Buy rate** (right) is what you pay for 1 USDT. It is normally a little above the
+Sell rate; the gap is the market's spread.
+
+### When the rate is out of date
+
+<p align="center">
+  <img src="docs/images/widget-stale.png" width="700" alt="A compact widget that is up to date next to one marked Stale in amber">
+</p>
+
+If the newest rate is older than three missed updates (**45 minutes** at the default
+15-minute interval), the time turns amber and reads **Stale**. This usually means the phone was offline,
+or battery saver held back background work. Tap ⟳ or open the app to fetch a fresh
+rate. The chart keeps the gap as a break so it never pretends the rate stood still.
+
+### Adding a widget
+
+1. Open **LKR P2P Rate** once, so it can collect its first rate.
+2. Long-press an empty spot on your home screen → **Widgets** → **LKR P2P Rate** →
+   drag **USDT/LKR Rate** onto the screen. Or use **Settings → Add a widget to the home
+   screen** in the app.
+3. Long-press the widget and drag its handles to resize it. The layout changes as you go.
+4. Choose which side new widgets start on in **Settings → New widgets show**.
+
+---
+
+## The app
+
+The app is for the moments the widget can't cover: converting an amount, seeing which
+ad you'd actually trade with, or setting an alert. Everything works one-handed, and the
+everyday question, "what's the rate right now?", needs no taps at all.
+
+<table>
+  <tr>
+    <td align="center" width="25%"><img src="docs/images/screen-rate.png" width="200" alt="Rate tab"><br><b>Rate</b></td>
+    <td align="center" width="25%"><img src="docs/images/screen-ads.png" width="200" alt="Ads tab"><br><b>Ads</b></td>
+    <td align="center" width="25%"><img src="docs/images/screen-alerts.png" width="200" alt="Alerts tab"><br><b>Alerts</b></td>
+    <td align="center" width="25%"><img src="docs/images/screen-settings.png" width="200" alt="Settings"><br><b>Settings</b></td>
+  </tr>
+</table>
+
+### Rate
+
+<img src="docs/images/screen-rate-full.png" width="260" align="right" alt="The whole Rate page">
+
+The home tab. Scroll down for more detail; pull down anywhere to refresh.
+
+- **Header**: the pair, the payment method being tracked
+  (Bank Transfer, Sri Lanka) and the ⚙ Settings button.
+- **Sell USDT / Buy USDT switch**: both live rates at once.
+  The selected side drives everything below it, and the line underneath says what it
+  means in plain words ("You give USDT and receive LKR in your bank").
+- **Converter card**: see [Converter](#converter).
+- **Chart card**:
+  - The title and change for the window, e.g. "Past 24 hours · +1.26 LKR · ▲ 0.38%".
+  - **Day / Week / Month**.
+  - **Press or drag on the chart** to read the exact rate and time at any point.
+    The header shows it while your finger is down.
+  - **Low**, **High** and **Average** for the window.
+- **Market card**:
+  - **Buy – sell spread**.
+  - **Top ad**: the headline price, even if it needs a large minimum.
+  - **Median of top 10**: a steadier view of the market.
+  - A one-line reminder of why the rate can differ from the top ad.
+- **Status line**: "Updated just now · refreshes every 15 min · pull down to refresh
+  now". It turns amber if the rate is stale.
+- **Widget tip**: shown only until you've added a widget.
+
+<br clear="right">
+
+### Converter
+
+<img src="docs/images/screen-converter.png" width="260" align="right" alt="The converter working from 100,000 rupees">
+
+Part of the Rate tab, built for the two questions people actually ask: *how many
+rupees do I get for this much USDT*, and *how much USDT do I need for this many rupees*.
+
+- It starts at **1 USDT**. Type any amount; thousands separators are added as you type.
+- **↓↑** swaps the direction, and the result becomes the new input, so the numbers on
+  screen stay put. Here 100,000 LKR needs 302.11 USDT.
+- **Quick amounts** change with the direction: 1 / 100 / 500 / 1,000 USDT, or
+  10k / 50k / 100k / 500k LKR.
+- The line under the card names the rate used and why:
+  - "Best ad for this amount: TD_TrustPay_LK" when an ad accepts exactly that order.
+  - "Rate from the best ad that takes 500 USDT orders" when the amount is below every
+    ad's minimum, as 1 USDT always is.
+  - "No single ad takes this much" when the order is larger than any ad allows.
+
+<br clear="right">
+
+### Ads
+
+The live order book for the selected side and payment method.
+
+- **Order size chips** (100 / 500 / 1,000 / 5,000 USDT) re-filter the list instantly,
+  without changing your saved setting.
+- A summary says how many ads can take the order and what it is in rupees: "9 of 20
+  ads can take 500 USDT (165,500 LKR) in one order. Updated 2m ago."
+- **Open Binance P2P to trade** jumps to the same market in the Binance app or website.
+  This app never trades or holds money.
+- **Each ad card** shows:
+  - The advertiser and the price.
+  - The rupee limits and the USDT available.
+  - Orders this month, completion rate and payment window.
+- The best ad for your order is highlighted as **Best rate for your order**.
+- Ads that can't take your order are folded under "Show N ads that can't take this
+  order". Each one says why: below the minimum, above the maximum, or not enough USDT.
+
+### Alerts
+
+Get a notification when the rate reaches your target.
+
+- Tap **New alert** to choose the side, **Rises to** or **Falls to**, and the target.
+  The target is pre-filled from the live rate, with −1 / +1 buttons to nudge it.
+- Each alert reads like a sentence ("Sell rate rises to 332.00") with progress
+  underneath ("Now 331.00 · 1.00 to go").
+- **Status** chips:
+  - **Watching**: waiting for the rate to cross your target.
+  - **Reached**: the alert has fired. It fires once, then re-arms when the rate
+    crosses back, so a rate hovering around your target doesn't spam you.
+  - **Paused**: the alert was set for a different order size. It resumes when you
+    switch back.
+- If notifications are turned off, a banner explains it and takes you to the switch.
+- Alerts are checked on the phone after every update. Nothing is sent to a server.
+
+### Settings
+
+Open with ⚙ on the Rate tab.
+
+| Setting | Options | What it does |
+|---|---|---|
+| **Order size** | 100, 500, 1,000, 5,000 or any amount | Only ads that accept an order this big count towards the rate. Set it to roughly what you trade. Each size keeps its own history |
+| **Payment method** | Bank Transfer (Sri Lanka), Bank Transfer | Which ads are tracked |
+| **Check for a new rate** | Every 15, 30 or 60 minutes | How often background updates run. No notification is shown |
+| **New widgets show** | Sell rate, Buy rate | The starting side for widgets you add. Each widget can still flip on its own |
+| **Add a widget to the home screen** | | Asks your launcher to place a widget (on launchers that support it) |
+
+---
 
 ## How the rate is worked out
 
-Everything shows the price of **1 USDT**. Which ad that price comes from depends
-on the **order size** in Settings (default 500 USDT): the rate is the best ad
-that will accept an order that big. P2P ads have LKR minimums, and the top ad
-often needs far more than most people trade, so quoting it would be misleading.
-Set the order size to roughly what you trade; each size keeps its own history.
+P2P ads have minimum and maximum order sizes in rupees. The first ad in the list
+often needs an order far bigger than most people trade, so quoting it would be
+misleading. Instead:
 
-- **Sell** = you give USDT and receive LKR (best = highest price).
-- **Buy** = you pay LKR and receive USDT (best = lowest price).
-- Binance pins "Promoted Ad" rows above the book regardless of price, so ads
-  are sorted best-first before the fillable one is picked.
+```mermaid
+flowchart LR
+    A[Binance P2P<br>order book] --> B[Drop pinned<br>Promoted Ads to<br>their real place]
+    B --> C[Sort best first<br>Sell: highest price<br>Buy: lowest price]
+    C --> D{Does the ad accept<br>your order size?<br>min ≤ order ≤ max<br>and enough USDT}
+    D -- no --> C
+    D -- yes --> E[That ad's price<br>= rate for 1 USDT]
+    E --> F[Widget, app,<br>chart and alerts]
+```
 
-## Background updates
+- **Sell USDT**: you give USDT and receive rupees. The best ad pays the most.
+- **Buy USDT**: you pay rupees and receive USDT. The best ad charges the least.
+- Binance pins "Promoted Ad" listings at the top regardless of price. They are put
+  back in price order before anything is picked.
+- Everything is shown **per 1 USDT**. The order size (500 USDT by default) only decides
+  which ad is usable.
 
-WorkManager checks both sides every **15 minutes** (30 or 60 in Settings) with
-**no notification**. 15 minutes is the shortest interval Android allows for
-background work; anything faster needs a foreground service with a permanent
-notification, costs battery and runs into Play's foreground-service rules.
-Doze and battery saver can stretch the interval while the phone is idle.
+---
 
-On top of that the app refreshes when you open it (if the rate is over a minute
-old), when you pull down, and when you tap ⟳ on a widget. Both sides are
-collected each time so a widget can flip without a gap in its history. If the
-newest rate is over 45 minutes old the widget says **Stale** in amber.
+## How often it updates
 
-History is kept on the phone for 30 days in SQLite and never leaves it.
+```mermaid
+flowchart LR
+    W[Every 15 min<br>WorkManager] --> P
+    O[Opening the app<br>if over 1 min old] --> P
+    R[Pull to refresh<br>or ⟳ on a widget] --> P
+    P[Fetch Sell and Buy<br>from Binance] --> S[(History on<br>the phone)]
+    S --> G[Widgets redraw]
+    S --> L[Alerts checked]
+```
 
-## Project layout
+- **15 minutes is the shortest interval Android allows** for ordinary background work.
+  Anything faster needs a foreground service, which means a permanent notification,
+  more battery use and stricter Play Store rules. That isn't worth it for a rate widget.
+- **Doze and battery saver** can stretch the interval while the phone sits idle. If
+  your phone is aggressive about this (Xiaomi, Oppo, Vivo, Huawei, Samsung "sleeping
+  apps"), set the app's battery usage to **Unrestricted**.
+- Both sides are collected every time, so any widget can flip without a gap in its
+  history.
+
+---
+
+## Privacy
+
+- **Nothing about you is collected.** There is no account, analytics, advertising
+  or crash reporting.
+- **Network requests** go only to Binance's public P2P search endpoint. They contain
+  only the currency pair, payment method and page size.
+- **Local data**: rate history (30 days), settings and alerts stay in the app's
+  private storage. Uninstalling the app deletes them.
+
+The full policy is in [PRIVACY.md](PRIVACY.md).
+
+Not affiliated with Binance. Not financial advice.
+
+---
+
+## For developers
+
+### Project layout
 
 | Path | Contents |
 |---|---|
-| `app/src/main/java/dev/dfanso/lkrp2p/core/` | Wire format, API client, fillable/median metrics, trend, converter, edge-triggered alerts |
-| `.../data/` | SQLite store, settings, the poller |
+| `app/src/main/java/dev/dfanso/lkrp2p/core/` | Wire format, Binance client, fillable/median metrics, trend, converter, edge-triggered alerts |
+| `.../data/` | SQLite history store, settings, the poller |
 | `.../work/` | WorkManager collector and alert notifications |
 | `.../render/` | Background and chart painters shared by the widget and the app |
 | `.../widget/` | Jetpack Glance widget with three size-dependent layouts |
 | `.../ui/` | Compose app: Rate, Ads and Alerts tabs plus Settings |
-| `app/src/test/` | Unit tests against recorded Binance responses, and render tests |
+| `app/src/test/` | Unit tests against recorded Binance responses, and screenshot tests |
+| `docs/` | README images and the script that builds them |
 | `play/` | Store icon (512px), feature graphic (1024x500) and its generator |
-| `PRIVACY.md` | Privacy policy text to host for the Play listing |
+| `PRIVACY.md` | Privacy policy to host for the Play listing |
 
-## Build
+### Build
 
 Requirements: JDK 17+ and the Android SDK (platform 36). Android Studio bundles
-both — open this folder in it and press Run. From a terminal:
+both; open this folder in it and press Run. From a terminal:
 
 ```sh
 ./gradlew testDebugUnitTest   # unit tests + screenshot renders
@@ -99,38 +343,48 @@ both — open this folder in it and press Run. From a terminal:
 ./gradlew lintDebug           # Android lint
 ```
 
-`testDebugUnitTest` also renders the real widget at six home-screen sizes
-(2x1 strip to tall 4x5) with Robolectric into `app/build/widget-shots/`, and the
-four app screens into `app/build/app-shots/`, so layout changes can be checked
-without a phone. The render tests need an x64 JDK.
-
 `local.properties` (git-ignored) must point at the SDK, for example
 `sdk.dir=C\:/Users/you/AppData/Local/Android/Sdk`.
 
-### Install on your own phone
+### Regenerating the screenshots
+
+Every image in this README is the real app code rendered by Robolectric, with
+no mock-ups. The screenshot tests seed realistic history and the recorded order
+books, then render:
+
+- every widget size and state into `app/build/widget-shots/`
+- every app screen into `app/build/app-shots/`
+
+`docs/make_readme_images.py` frames and labels them:
+
+```sh
+./gradlew testDebugUnitTest
+py docs/make_readme_images.py      # needs Pillow; writes docs/images/
+```
+
+The render tests need an x64 JDK, because Robolectric's native graphics have no
+ARM64 Windows build.
+
+### Install on your phone
 
 1. On the phone: Settings → About phone → tap **Build number** 7 times →
-   back to Settings → Developer options → enable **USB debugging**.
-2. Connect by USB and run `./gradlew installDebug`, **or** copy `app-debug.apk`
-   to the phone and open it (allow "install unknown apps" for your file manager).
-3. Open **LKR P2P Rate** once, then long-press the home screen → Widgets →
-   **USDT/LKR Rate**, or use **Add widget** in the app's Settings.
-4. If your phone has aggressive battery management (Xiaomi, Oppo, Vivo, Huawei,
-   Samsung "sleeping apps"), set the app's battery usage to **Unrestricted**,
-   otherwise background updates may stop.
+   Developer options → enable **USB debugging**.
+2. Connect by USB and run `./gradlew installDebug`. **Or** copy `app-debug.apk` to the
+   phone and open it (allow "install unknown apps" for your file manager).
+3. Open the app once, then [add a widget](#adding-a-widget).
 
-The debug build installs side by side with the Play version.
+The debug build installs as `dev.dfanso.lkrp2p.debug`, side by side with the Play version.
 
-## Release build and Google Play
+### Publish to Google Play
 
-### 1. Create an upload key (once — back it up; losing it is painful)
+**1. Create an upload key** (once; back it up, because losing it is painful):
 
 ```sh
 keytool -genkeypair -v -keystore upload-key.jks -alias upload \
   -keyalg RSA -keysize 2048 -validity 10000
 ```
 
-Then create `keystore.properties` next to it (git-ignored, as is the `.jks`):
+Then create `keystore.properties` in this folder (git-ignored, as is the `.jks`):
 
 ```properties
 storeFile=upload-key.jks
@@ -139,55 +393,58 @@ keyAlias=upload
 keyPassword=...
 ```
 
-### 2. Build the bundle
+**2. Build the bundle:**
 
 ```sh
 ./gradlew bundleRelease   # app/build/outputs/bundle/release/app-release.aab
 ```
 
 Bump `versionCode` (and `versionName`) in `app/build.gradle.kts` for every upload.
-The **application ID `dev.dfanso.lkrp2p` is permanent** once published — change
-it now if you want a different one.
+The **application ID `dev.dfanso.lkrp2p` is permanent** once published, so change it
+now if you want a different one.
 
-### 3. Play Console
+**3. Play Console:**
 
-1. Create a developer account at <https://play.google.com/console> (one-time
-   US$25; identity verification takes a few days).
-2. **Create app** → name "LKR P2P Rate", App, Free.
-3. Upload `app-release.aab` and enrol in **Play App Signing** (default). Google
-   holds the real signing key; yours is only the upload key.
+1. Create a developer account at <https://play.google.com/console> (one-time US$25;
+   identity verification takes a few days).
+2. **Create app**: name "LKR P2P Rate", App, Free.
+3. Upload `app-release.aab` and enrol in **Play App Signing** (the default). Google holds
+   the real signing key; yours is only the upload key.
 4. **Store listing**: icon `play/icon-512.png`, feature graphic
-   `play/feature-graphic.png`, at least 2 phone screenshots (the app and the home
-   screen with the widget), short and full description (suggested text below).
+   `play/feature-graphic.png`, phone screenshots (the images in `docs/images/` work),
+   and the descriptions below.
 5. **App content**:
-   - Privacy policy: host `PRIVACY.md` somewhere public (GitHub Pages or a public
-     gist works) and paste the URL. Fill in the contact email first.
-   - Data safety: *No data collected, no data shared.*
-   - Ads: No. Target audience: 18+. Content rating questionnaire: utility, no
-     objectionable content.
-   - Financial features declaration: the app displays rates only; it does not
-     trade, hold funds, or offer financial services.
-6. **Testing requirement for new personal accounts:** Google requires a closed
-   test with **at least 12 testers opted in for 14 continuous days** before you
-   can apply for production access. Organisation accounts are exempt. This is
-   the longest step.
+   - Privacy policy: host `PRIVACY.md` publicly (GitHub Pages or a public gist) and
+     paste the URL. Add your contact email to it first.
+   - Data safety: *No data collected, no data shared*.
+   - Ads: No.
+   - Target audience: 18+.
+   - Content rating: utility, no objectionable content.
+   - Financial features: the app only displays rates. It does not trade, hold funds
+     or offer financial services.
+6. **New personal accounts** must run a closed test with **at least 12 testers opted
+   in for 14 continuous days** before applying for production. Organisation accounts
+   are exempt. This is the longest step.
 7. Promote to production and submit for review.
 
-Things that get rate apps rejected, and how this one avoids them: no Binance or
-Tether logos or names in the icon or title (the name is "LKR P2P Rate"; the
-listing may say *uses public Binance P2P data* and *not affiliated with
-Binance*); no claims of being an official or trading app; no "real-time" claims.
+Things that get rate apps rejected, and how this one avoids them:
+- **No Binance or Tether logos or names in the icon or title.** The listing may say
+  *uses public Binance P2P data* and *not affiliated with Binance*.
+- **No claim to be an official or trading app.**
+- **No "real-time" claims.**
 
-### Suggested listing text
+<details>
+<summary><b>Suggested listing text</b></summary>
 
 **Short description (80 chars):**
 Live USDT/LKR P2P rate widget with trend chart and rate alerts.
 
 **Full description:**
+
 See the real USDT/LKR P2P rate right on your home screen.
 
 LKR P2P Rate reads the public P2P order book and shows the best rate you can
-actually get for your order size — not the top advert that needs a minimum you
+actually get for your order size, not the top advert that needs a minimum you
 can't meet.
 
 • Resizable home-screen widget, from a slim strip to a full card
@@ -199,6 +456,10 @@ can't meet.
 • History stays on your phone. No account, no ads, no tracking.
 
 Uses public Binance P2P data. Not affiliated with Binance. Not financial advice.
+
+</details>
+
+---
 
 ## Credits
 

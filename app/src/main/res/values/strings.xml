@@ -7,6 +7,6 @@
     <string name="alert_channel_name">Rate alerts</string>
     <string name="alert_channel_description">Notifies you when the rate crosses a threshold you set</string>
     <string name="preview_title">P2P Rate · USDT/LKR</string>
-    <string name="preview_amount">₮ 500</string>
-    <string name="preview_total">Rs 165,350</string>
+    <string name="preview_amount">₮ 1</string>
+    <string name="preview_total">Rs 331.00</string>
 </resources>

@@ -53,7 +53,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -163,6 +167,7 @@ private fun ConverterCard(state: UiState, vm: MainViewModel) {
                     textStyle = TextStyle(color = Ui.Text, fontSize = big.sp, fontWeight = FontWeight.Bold),
                     cursorBrush = SolidColor(Ui.Up),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    visualTransformation = GroupDigits,
                     modifier = Modifier.weight(1f),
                     decorationBox = { field ->
                         if (input.text.isEmpty()) Text("0", color = Ui.Faint, fontSize = big.sp, fontWeight = FontWeight.Bold)
@@ -432,5 +437,28 @@ private fun WidgetPromo() {
                 color = Ui.Text, fontSize = 14.sp,
             )
         }
+    }
+}
+
+/** Shows "100000.5" as "100,000.5" while the stored text stays plain digits. */
+private object GroupDigits : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val raw = text.text
+        val intLen = raw.indexOf('.').let { if (it < 0) raw.length else it }
+        // toTransformed[i] is where raw offset i lands once commas are added.
+        val toTransformed = IntArray(raw.length + 1)
+        val out = StringBuilder()
+        for (i in raw.indices) {
+            if (i in 1 until intLen && (intLen - i) % 3 == 0) out.append(',')
+            toTransformed[i] = out.length
+            out.append(raw[i])
+        }
+        toTransformed[raw.length] = out.length
+        val mapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int) = toTransformed[offset]
+            override fun transformedToOriginal(offset: Int) =
+                toTransformed.indexOfFirst { it >= offset }.let { if (it < 0) raw.length else it }
+        }
+        return TransformedText(AnnotatedString(out.toString()), mapping)
     }
 }

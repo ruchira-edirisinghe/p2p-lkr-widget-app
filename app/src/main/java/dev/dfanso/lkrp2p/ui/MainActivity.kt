@@ -45,7 +45,6 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         setContent { AppTheme { App(vm) } }
-
     }
 
     override fun onStart() {
@@ -55,11 +54,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/** [startTab] and [startInSettings] let the screenshot tests open any screen. */
 @Composable
-private fun App(vm: MainViewModel) {
+internal fun App(vm: MainViewModel, startTab: Tab = Tab.RATE, startInSettings: Boolean = false) {
     val state by vm.state.collectAsStateWithLifecycle()
-    var tab by rememberSaveable { mutableStateOf(Tab.RATE) }
-    var settingsOpen by rememberSaveable { mutableStateOf(false) }
+    var tab by rememberSaveable { mutableStateOf(startTab) }
+    var settingsOpen by rememberSaveable { mutableStateOf(startInSettings) }
     BackHandler(enabled = settingsOpen || tab != Tab.RATE) {
         if (settingsOpen) settingsOpen = false else tab = Tab.RATE
     }
