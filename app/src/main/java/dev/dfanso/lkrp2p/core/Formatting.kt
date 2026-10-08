@@ -13,6 +13,23 @@ object Formatting {
 
     fun price(value: Double?): String = value?.let { priceFormat.format(it) } ?: "—"
 
+    /**
+     * An exchange rate of any size: 2 decimals for LKR-sized numbers, more for
+     * small ones, so 1 LKR = 0.003312 USD does not round to 0.00.
+     */
+    fun rate(value: Double?): String {
+        if (value == null) return "—"
+        val abs = kotlin.math.abs(value)
+        val decimals = when {
+            abs >= 100 -> 2
+            abs >= 1 -> 4
+            abs == 0.0 -> 2
+            // Four significant digits.
+            else -> (3 - kotlin.math.floor(kotlin.math.log10(abs)).toInt()).coerceAtMost(10)
+        }
+        return DecimalFormat("#,##0." + "0".repeat(decimals), symbols).format(value)
+    }
+
     fun whole(value: Double): String = wholeFormat.format(value)
 
     fun whole(value: Int): String = wholeFormat.format(value)

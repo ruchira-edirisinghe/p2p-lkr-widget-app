@@ -127,6 +127,28 @@ class Store private constructor(context: Context) :
         return MetricsEngine.downsample(raw, window.bucketSec)
     }
 
+    /** Every stored sample as CSV, oldest first. */
+    fun exportCsv(): String = buildString {
+        appendLine("timestamp_utc,side,order_usdt,fillable_lkr,top_lkr,median_top10_lkr,advertiser")
+        val format = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US)
+            .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }
+        readableDatabase.rawQuery(
+            "SELECT ts, side, amount_usdt, fillable_price, top_price, median_top10, adv_name FROM samples ORDER BY ts ASC;",
+            null,
+        ).use { c ->
+            while (c.moveToNext()) {
+                val name = c.stringOrNull("adv_name")?.replace("\"", "\"\"")?.let { "\"$it\"" }.orEmpty()
+                appendLine(
+                    listOf(
+                        format.format(java.util.Date(c.getLong(0) * 1000)), c.getString(1), c.getInt(2).toString(),
+                        c.doubleOrNull("fillable_price")?.toString().orEmpty(), c.getDouble(4).toString(),
+                        c.doubleOrNull("median_top10")?.toString().orEmpty(), name,
+                    ).joinToString(",")
+                )
+            }
+        }
+    }
+
     @androidx.annotation.VisibleForTesting
     fun clearForTests() {
         writableDatabase.apply { delete("samples", null, null); delete("snapshot", null, null); delete("alerts", null, null) }

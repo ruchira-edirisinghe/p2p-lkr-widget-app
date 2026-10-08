@@ -9,4 +9,9 @@
     <string name="preview_title">P2P Rate · USDT/LKR</string>
     <string name="preview_amount">₮ 1</string>
     <string name="preview_total">Rs 331.00</string>
+    <string name="fx_widget_name">Exchange Rate</string>
+    <string name="fx_widget_description">Any currency pair, such as USD/LKR or EUR/USD, with a trend chart</string>
+    <string name="fx_preview_title">Exchange rate · USD/LKR</string>
+    <string name="fx_preview_amount">1 USD</string>
+    <string name="fx_preview_total">300.25 LKR</string>
 </resources>

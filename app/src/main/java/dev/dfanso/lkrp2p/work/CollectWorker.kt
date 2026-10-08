@@ -15,7 +15,8 @@ import dev.dfanso.lkrp2p.data.PollOutcome
 import dev.dfanso.lkrp2p.data.Poller
 import dev.dfanso.lkrp2p.data.Settings
 import dev.dfanso.lkrp2p.data.Store
-import dev.dfanso.lkrp2p.widget.RateWidget
+import dev.dfanso.lkrp2p.data.FxRepository
+import dev.dfanso.lkrp2p.widget.Widgets
 import java.util.concurrent.TimeUnit
 
 /** One polling cycle, run by WorkManager every [Settings.pollMinutes] or on demand. */
@@ -30,10 +31,12 @@ class CollectWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             presenter = { rule, price -> AlertNotifier.present(context, rule, price) },
         )
         val oneShot = tags.contains(TAG_ONE_SHOT)
+        // The worker survives reboots and force-stops that drop alarms; revive the alarm chain.
+        CollectAlarm.ensureScheduled(context)
         // A scheduled run that lands just after the app refreshed has nothing to add.
         val outcomes = poller.pollOnce(minSpacingSec = if (oneShot) 0 else 60)
         // Repaint widgets either way: on failure they show the stale badge.
-        RateWidget.refreshAll(context)
+        refreshEverything(context)
 
         // Periodic work just waits for its next slot. A user-requested refresh
         // that failed entirely is retried with backoff instead.
@@ -64,6 +67,7 @@ class CollectWorker(context: Context, params: WorkerParameters) : CoroutineWorke
                 if (replace) ExistingPeriodicWorkPolicy.UPDATE else ExistingPeriodicWorkPolicy.KEEP,
                 request,
             )
+            if (replace) CollectAlarm.schedule(context) else CollectAlarm.ensureScheduled(context)
         }
 
         fun runNow(context: Context) {
@@ -74,4 +78,13 @@ class CollectWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             WorkManager.getInstance(context).enqueueUniqueWork(ONE_SHOT, ExistingWorkPolicy.REPLACE, request)
         }
     }
+}
+
+/**
+ * After a P2P poll: top up the daily reference rates when they are a few hours
+ * old (they change once a day), then repaint every widget of both kinds.
+ */
+internal suspend fun refreshEverything(context: Context) {
+    FxRepository.get(context).refreshIfDue()
+    Widgets.refreshAll(context)
 }

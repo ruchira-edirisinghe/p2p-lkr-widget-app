@@ -4,6 +4,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:name=".P2PApp"
@@ -34,6 +35,39 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/rate_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.FxWidgetReceiver"
+            android:exported="true"
+            android:label="@string/fx_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/fx_widget_info" />
+        </receiver>
+
+        <!-- Picks a widget's theme, and for exchange-rate widgets its pair. -->
+        <activity
+            android:name=".ui.WidgetConfigActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.LkrP2P">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Background polls that still fire in Doze; see CollectAlarm. -->
+        <receiver
+            android:name=".work.CollectAlarm"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
         </receiver>
     </application>
 </manifest>

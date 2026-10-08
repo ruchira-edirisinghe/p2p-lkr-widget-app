@@ -2,6 +2,10 @@ package dev.dfanso.lkrp2p.ui
 
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.os.PowerManager
+import android.provider.Settings as SystemSettings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,8 +26,17 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import dev.dfanso.lkrp2p.data.Store
+import dev.dfanso.lkrp2p.widget.Widgets
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -32,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import dev.dfanso.lkrp2p.R
 import dev.dfanso.lkrp2p.core.Formatting
 import dev.dfanso.lkrp2p.core.PaymentMethod
@@ -39,7 +53,7 @@ import dev.dfanso.lkrp2p.core.Side
 import dev.dfanso.lkrp2p.data.Settings
 import dev.dfanso.lkrp2p.widget.RateWidgetReceiver
 
-private enum class Dialog { ORDER_SIZE, PAYMENT, FREQUENCY, WIDGET_SIDE }
+private enum class Dialog { ORDER_SIZE, PAYMENT, FREQUENCY, WIDGET_SIDE, OPACITY }
 
 @Composable
 fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
@@ -56,6 +70,43 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(painterResource(R.drawable.ic_back), "Back", tint = Ui.Text) }
             Text("Settings", color = Ui.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            SectionLabel("Appearance", Modifier.padding(start = 4.dp))
+            val settings = remember { Settings.get(context) }
+            var appTheme by remember { mutableStateOf(settings.appTheme) }
+            var widgetTheme by remember { mutableStateOf(settings.widgetTheme) }
+            val scope = rememberCoroutineScope()
+            fun repaintWidgets() = scope.launch { Widgets.refreshAll(context) }
+            Panel {
+                Text("App theme", color = Ui.Text, fontSize = 16.sp)
+                ThemeSwatches(appTheme, { picked ->
+                    val theme = picked ?: return@ThemeSwatches
+                    appTheme = theme
+                    settings.appTheme = theme
+                    Ui.apply(context, theme)
+                    if (widgetTheme == null) repaintWidgets()
+                })
+                Text("Widget theme", color = Ui.Text, fontSize = 16.sp, modifier = Modifier.padding(top = 6.dp))
+                ThemeSwatches(widgetTheme, { picked ->
+                    widgetTheme = picked
+                    settings.widgetTheme = picked
+                    repaintWidgets()
+                }, followLabel = "Same as app")
+                Text(
+                    "Applies to every widget that has no theme of its own. To theme one widget, long-press it " +
+                        "and choose Settings (or Reconfigure).",
+                    color = Ui.Dim, fontSize = 13.sp,
+                )
+            }
+            Panel(padding = 8.dp) {
+                SettingRow(
+                    "Widget background",
+                    if (state.widgetOpacity == 0) "Transparent" else "${state.widgetOpacity}%",
+                    "Lower it to let your wallpaper show through.",
+                ) { dialog = Dialog.OPACITY }
+            }
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -78,6 +129,20 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
                     "Every ${state.pollMinutes} min",
                     "Runs in the background with no notification. Battery saver can delay it while the phone is idle.",
                 ) { dialog = Dialog.FREQUENCY }
+                // Re-read on return from system settings.
+                var unrestricted by remember { mutableStateOf(isUnrestricted(context)) }
+                LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { unrestricted = isUnrestricted(context) }
+                SettingRow(
+                    "Battery use",
+                    if (unrestricted) "Unrestricted" else "Optimised",
+                    if (unrestricted) null
+                    else "The phone may pause updates for hours while it sleeps, leaving gaps in the chart. " +
+                        "Tap, then set Battery to Unrestricted.",
+                ) {
+                    context.startActivity(
+                        Intent(SystemSettings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri())
+                    )
+                }
             }
         }
 
@@ -106,7 +171,28 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
                         "and is never uploaded. No account, no ads, no tracking.",
                     color = Ui.Dim, fontSize = 14.sp,
                 )
+                Text(
+                    "Exchange rates for the Currencies tab and widget come from the open-source " +
+                        "fawazahmed0/exchange-api and are daily reference rates.",
+                    color = Ui.Dim, fontSize = 14.sp,
+                )
                 Text("Not affiliated with Binance. Not financial advice.", color = Ui.Dim, fontSize = 14.sp)
+            }
+            Panel(padding = 8.dp) {
+                SettingRow("Open source", "GitHub", "Free and open source under the MIT License. Read the code, report a bug or contribute.") {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, SOURCE_URL.toUri()))
+                }
+                val scope = rememberCoroutineScope()
+                SettingRow("Export P2P history", "CSV", "Every saved sample from the last 30 days, to share or open in a spreadsheet.") {
+                    scope.launch {
+                        val csv = withContext(Dispatchers.IO) { Store.get(context).exportCsv() }
+                        val send = Intent(Intent.ACTION_SEND)
+                            .setType("text/csv")
+                            .putExtra(Intent.EXTRA_SUBJECT, "USDT/LKR P2P history")
+                            .putExtra(Intent.EXTRA_TEXT, csv)
+                        context.startActivity(Intent.createChooser(send, "Export history"))
+                    }
+                }
             }
         }
     }
@@ -121,12 +207,23 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
         Dialog.FREQUENCY -> ChoiceDialog("Check for a new rate", Settings.Defaults.POLL_CHOICES, state.pollMinutes, { "Every $it minutes" }, { dialog = null }) {
             vm.setPollMinutes(it); dialog = null
         }
+        Dialog.OPACITY -> ChoiceDialog(
+            "Widget background", Settings.Defaults.OPACITY_CHOICES, state.widgetOpacity,
+            { if (it == 0) "Transparent" else "$it% opaque" }, { dialog = null },
+        ) {
+            vm.setWidgetOpacity(it); dialog = null
+        }
         Dialog.WIDGET_SIDE -> ChoiceDialog("New widgets show", Side.entries, state.defaultSide, { "${it.label} rate" }, { dialog = null }) {
             vm.setDefaultSide(it); dialog = null
         }
         null -> Unit
     }
 }
+
+const val SOURCE_URL = "https://github.com/ruchira-edirisinghe/p2p-lkr-widget-app"
+
+private fun isUnrestricted(context: Context): Boolean =
+    context.getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(context.packageName) == true
 
 @Composable
 private fun <T> ChoiceDialog(

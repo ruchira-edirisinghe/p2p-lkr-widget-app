@@ -1,10 +1,11 @@
 <h1 align="center">LKR P2P Rate</h1>
 
 <p align="center">
-  <b>The USDT/LKR P2P rate on your Android home screen.</b><br>
-  A resizable widget and a companion app that read the public Binance P2P order book
+  <b>The USDT/LKR P2P rate, and any currency exchange rate, on your Android home screen.</b><br>
+  Resizable widgets and a companion app that read the public Binance P2P order book
   and show the best rate you can <i>actually</i> get, with a trend chart, a converter,
-  the live list of ads, and rate alerts.
+  the live list of ads and rate alerts, plus a second widget for ordinary exchange
+  rates on any currency pair, in nine colour themes.
 </p>
 
 <p align="center">
@@ -12,7 +13,8 @@
 </p>
 
 <p align="center">
-  Kotlin · Jetpack Compose · Jetpack Glance · Android 8.0+ · no account, no ads, no tracking
+  Kotlin · Jetpack Compose · Jetpack Glance · Android 8.0+ · no account, no ads, no tracking<br>
+  <b>Free and open source</b> under the <a href="LICENSE">MIT License</a>
 </p>
 
 ---
@@ -26,11 +28,14 @@
   - [Day, Week, Month and Buy](#day-week-month-and-buy)
   - [When the rate is out of date](#when-the-rate-is-out-of-date)
   - [Adding a widget](#adding-a-widget)
+- [Exchange Rate widget](#exchange-rate-widget)
+- [Colour themes](#colour-themes)
 - [The app](#the-app)
-  - [Rate](#rate) · [Converter](#converter) · [Ads](#ads) · [Alerts](#alerts) · [Settings](#settings)
+  - [Rate](#rate-p2p-tab) · [Converter](#converter) · [Currencies](#currencies) · [Ads](#ads) · [Alerts](#alerts) · [Settings](#settings)
 - [How the rate is worked out](#how-the-rate-is-worked-out)
 - [How often it updates](#how-often-it-updates)
 - [Privacy](#privacy)
+- [Open source](#open-source)
 - [For developers](#for-developers)
   - [Project layout](#project-layout) · [Build](#build) · [Screenshots](#regenerating-the-screenshots) · [Install on your phone](#install-on-your-phone) · [Publish to Google Play](#publish-to-google-play)
 
@@ -42,10 +47,11 @@
 |---|---|
 | **What it shows** | The price of **1 USDT in Sri Lankan rupees** on Binance P2P, for selling and for buying |
 | **Where the price comes from** | The best ad that will accept your usual order size (500 USDT by default), not the headline ad with a minimum you can't meet |
-| **Widget** | One widget, resizable from a 2x1 strip to a full 4x4 card, with its own Day/Week/Month chart and Sell/Buy switch |
-| **App** | Rate, Ads and Alerts tabs plus Settings |
+| **Widgets** | **USDT/LKR Rate**: resizable from a 2x1 strip to a full 4x4 card, with its own Day/Week/Month chart and Sell/Buy switch. **Exchange Rate**: any currency pair (USD/LKR, EUR/USD, AED/LKR, BTC/LKR…) with a 1W/1M/3M/1Y chart |
+| **Themes** | Nine colour themes for the app and the widgets, adjustable widget transparency, and a theme per widget |
+| **App** | P2P, Currencies, Ads and Alerts tabs plus Settings |
 | **Updates** | In the background every 15 minutes (30 or 60 if you prefer), with no notification; on demand when you open the app, pull down or tap ⟳ |
-| **Data** | 30 days of history kept on the phone only |
+| **Data** | 30 days of P2P history and the downloaded exchange rates, kept on the phone only. Exportable as CSV |
 | **Requirements** | Android 8.0 (API 26) or newer, phones and tablets |
 
 ---
@@ -136,6 +142,60 @@ rate. The chart keeps the gap as a break so it never pretends the rate stood sti
    screen** in the app.
 3. Long-press the widget and drag its handles to resize it. The layout changes as you go.
 4. Choose which side new widgets start on in **Settings → New widgets show**.
+5. To give one widget its own colour theme, long-press it and choose **Settings**
+   (or **Reconfigure**, depending on the launcher).
+
+---
+
+## Exchange Rate widget
+
+<p align="center">
+  <img src="docs/images/widget-fx.png" width="900" alt="The Exchange Rate widget as a full card, a compact card and a strip">
+</p>
+
+A second, separate widget for ordinary currency conversion. It covers any pair from
+**300+ currencies**: the Gulf currencies, USD, EUR, GBP, INR, AUD and the rest, plus the
+main coins such as BTC and ETH.
+
+- **Pick the pair** on the setup screen that opens when you add the widget. On Android
+  12+ that step is optional: the widget starts on the pair last used in the Currencies
+  tab, and you can change it later from its long-press menu.
+- **1W / 1M / 3M / 1Y** switches the chart range.
+- **↓↑** swaps the pair (USD/LKR becomes LKR/USD).
+- **⟳** fetches the latest rates. Tapping anywhere else opens the Currencies tab.
+
+These are **daily mid-market reference rates**, the kind banks and online converters
+quote. They are not what a P2P trader will pay you for USDT, which is why this is its
+own widget and the P2P widget stays P2P-only.
+
+The rates come from the free, open-source
+[fawazahmed0/exchange-api](https://github.com/fawazahmed0/exchange-api), which needs
+no API key. It publishes one file a day with every currency priced in US dollars, so
+any pair is worked out through the dollar: EUR→LKR = (LKR per USD) ÷ (EUR per USD).
+The app checks for a new day every few hours. The first time you open a longer chart
+range, it fetches the older days once (about 45 files at most per range). Everything is
+saved on the phone, so the widget and converter keep working offline with the last
+saved day.
+
+---
+
+## Colour themes
+
+<p align="center">
+  <img src="docs/images/widget-themes.png" width="900" alt="The same widget in all nine colour themes">
+</p>
+
+Nine themes, all dark. Each one changes the glow, the accent colour and the chart line:
+**Emerald** (default), **Ocean**, **Amethyst**, **Sunset**, **Rose**, **Gold**,
+**Graphite**, **Midnight** (pure black, for OLED screens) and **Wallpaper** (Material
+You: picks up your wallpaper's colours on Android 12 and later).
+
+- **Settings → Appearance → App theme** colours the app.
+- **Widget theme** colours every widget. **Same as app** follows the app theme.
+- **Widget background** sets the card's opacity, from 100% down to fully transparent,
+  so your wallpaper can show through.
+- **One widget only**: long-press it, open its settings and pick a theme for just that
+  widget. **Default** puts it back on the theme from Settings.
 
 ---
 
@@ -147,14 +207,15 @@ everyday question, "what's the rate right now?", needs no taps at all.
 
 <table>
   <tr>
-    <td align="center" width="25%"><img src="docs/images/screen-rate.png" width="200" alt="Rate tab"><br><b>Rate</b></td>
-    <td align="center" width="25%"><img src="docs/images/screen-ads.png" width="200" alt="Ads tab"><br><b>Ads</b></td>
-    <td align="center" width="25%"><img src="docs/images/screen-alerts.png" width="200" alt="Alerts tab"><br><b>Alerts</b></td>
-    <td align="center" width="25%"><img src="docs/images/screen-settings.png" width="200" alt="Settings"><br><b>Settings</b></td>
+    <td align="center" width="20%"><img src="docs/images/screen-rate.png" width="180" alt="P2P tab"><br><b>P2P</b></td>
+    <td align="center" width="20%"><img src="docs/images/screen-currencies.png" width="180" alt="Currencies tab"><br><b>Currencies</b></td>
+    <td align="center" width="20%"><img src="docs/images/screen-ads.png" width="180" alt="Ads tab"><br><b>Ads</b></td>
+    <td align="center" width="20%"><img src="docs/images/screen-alerts.png" width="180" alt="Alerts tab"><br><b>Alerts</b></td>
+    <td align="center" width="20%"><img src="docs/images/screen-settings.png" width="180" alt="Settings"><br><b>Settings</b></td>
   </tr>
 </table>
 
-### Rate
+### Rate (P2P tab)
 
 <img src="docs/images/screen-rate-full.png" width="260" align="right" alt="The whole Rate page">
 
@@ -187,7 +248,7 @@ The home tab. Scroll down for more detail; pull down anywhere to refresh.
 
 <img src="docs/images/screen-converter.png" width="260" align="right" alt="The converter working from 100,000 rupees">
 
-Part of the Rate tab, built for the two questions people actually ask: *how many
+Part of the P2P tab, built for the two questions people actually ask: *how many
 rupees do I get for this much USDT*, and *how much USDT do I need for this many rupees*.
 
 - It starts at **1 USDT**. Type any amount; thousands separators are added as you type.
@@ -200,6 +261,23 @@ rupees do I get for this much USDT*, and *how much USDT do I need for this many 
   - "Rate from the best ad that takes 500 USDT orders" when the amount is below every
     ad's minimum, as 1 USDT always is.
   - "No single ad takes this much" when the order is larger than any ad allows.
+
+<br clear="right">
+
+### Currencies
+
+<img src="docs/images/screen-currencies.png" width="260" align="right" alt="The Currencies tab">
+
+A converter for any pair, built for the everyday "how much is 250 dollars in rupees?".
+
+- **Type an amount** and pick both currencies from a searchable list of 300+
+  (search by code or name). **↓↑** swaps them.
+- **Chart** for 1W, 1M, 3M or 1Y, with the low, high and average for the range.
+- **Favourites**: USD, EUR, GBP, AED and INR against LKR to start with. Star the
+  current pair to add it, or tap a favourite to load it.
+- **Add widget** puts an Exchange Rate widget for the current pair on your home screen.
+- **Export CSV** shares every saved day of the current pair.
+- Pull down to refresh. Rates are daily reference rates, not P2P prices.
 
 <br clear="right">
 
@@ -240,15 +318,21 @@ Get a notification when the rate reaches your target.
 
 ### Settings
 
-Open with ⚙ on the Rate tab.
+Open with ⚙ on the P2P or Currencies tab.
 
 | Setting | Options | What it does |
 |---|---|---|
+| **App theme** | Nine themes | Colours the app. See [Colour themes](#colour-themes) |
+| **Widget theme** | Same as app, or any theme | Colours every widget that has no theme of its own |
+| **Widget background** | 100%, 85%, 70%, 50%, 30%, transparent | How much of the wallpaper shows through the widgets |
 | **Order size** | 100, 500, 1,000, 5,000 or any amount | Only ads that accept an order this big count towards the rate. Set it to roughly what you trade. Each size keeps its own history |
 | **Payment method** | Bank Transfer (Sri Lanka), Bank Transfer | Which ads are tracked |
 | **Check for a new rate** | Every 15, 30 or 60 minutes | How often background updates run. No notification is shown |
+| **Battery use** | Shows Unrestricted or Optimised | Opens the system page where you can let the app run in the background. See [How often it updates](#how-often-it-updates) |
 | **New widgets show** | Sell rate, Buy rate | The starting side for widgets you add. Each widget can still flip on its own |
 | **Add a widget to the home screen** | | Asks your launcher to place a widget (on launchers that support it) |
+| **Open source** | | Opens this repository |
+| **Export P2P history** | CSV | Shares every saved sample from the last 30 days |
 
 ---
 
@@ -281,7 +365,8 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    W[Every 15 min<br>WorkManager] --> P
+    W[Every 15 min<br>alarm that also<br>fires in Doze] --> P
+    B[WorkManager<br>backstop] --> P
     O[Opening the app<br>if over 1 min old] --> P
     R[Pull to refresh<br>or ⟳ on a widget] --> P
     P[Fetch Sell and Buy<br>from Binance] --> S[(History on<br>the phone)]
@@ -292,9 +377,17 @@ flowchart LR
 - **15 minutes is the shortest interval Android allows** for ordinary background work.
   Anything faster needs a foreground service, which means a permanent notification,
   more battery use and stricter Play Store rules. That isn't worth it for a rate widget.
-- **Doze and battery saver** can stretch the interval while the phone sits idle. If
-  your phone is aggressive about this (Xiaomi, Oppo, Vivo, Huawei, Samsung "sleeping
-  apps"), set the app's battery usage to **Unrestricted**.
+- **Updates keep running while the phone sleeps.** Android's Doze mode used to hold
+  back the background job for hours overnight, so the chart showed short pieces with
+  gaps. Updates are now driven by an alarm that still fires in Doze, with WorkManager as
+  a backstop. It needs no special permission and shows no notification.
+- **Phone makers add their own limits** on top of Doze (Samsung "sleeping apps",
+  Xiaomi, Oppo, Vivo, Huawei). **Settings → Battery use** shows whether the app is
+  restricted. Tap it and set battery usage to **Unrestricted**.
+- **Any remaining gap** (no internet, phone switched off) is bridged with a faint
+  dashed line, so the chart reads as one series. No price is invented for that time.
+- **Exchange rates** change once a day, so they are checked every few hours along with
+  the P2P rate.
 - Both sides are collected every time, so any widget can flip without a gap in its
   history.
 
@@ -304,14 +397,26 @@ flowchart LR
 
 - **Nothing about you is collected.** There is no account, analytics, advertising
   or crash reporting.
-- **Network requests** go only to Binance's public P2P search endpoint. They contain
-  only the currency pair, payment method and page size.
-- **Local data**: rate history (30 days), settings and alerts stay in the app's
-  private storage. Uninstalling the app deletes them.
+- **Network requests** go to Binance's public P2P search endpoint (containing only the
+  currency pair, payment method and page size) and, for exchange rates, to the
+  open-source currency-api's daily files on jsDelivr / Cloudflare. Those are plain file
+  downloads: nothing about you or the pairs you look at is sent.
+- **Local data**: P2P history (30 days), downloaded exchange rates, favourites,
+  settings and alerts stay in the app's private storage. Uninstalling the app deletes
+  them.
 
 The full policy is in [PRIVACY.md](PRIVACY.md).
 
 Not affiliated with Binance. Not financial advice.
+
+---
+
+## Open source
+
+LKR P2P Rate is free and open source under the [MIT License](LICENSE). You may use,
+copy, change and share the code, including in your own apps, as long as the copyright
+notice and license text come with it. Bug reports, ideas and pull requests are welcome
+in [Issues](https://github.com/ruchira-edirisinghe/p2p-lkr-widget-app/issues).
 
 ---
 
@@ -352,8 +457,12 @@ Every image in this README is the real app code rendered by Robolectric, with
 no mock-ups. The screenshot tests seed realistic history and the recorded order
 books, then render:
 
-- every widget size and state into `app/build/widget-shots/`
-- every app screen into `app/build/app-shots/`
+- every widget size and state, the Exchange Rate widget and one card per colour theme
+  into `app/build/widget-shots/`
+- every app screen, including the Currencies tab and an Ocean-themed P2P tab, into
+  `app/build/app-shots/`
+
+Exchange rates in the tests come from an offline fake, so no test touches the network.
 
 `docs/make_readme_images.py` frames and labels them:
 
@@ -437,7 +546,7 @@ Things that get rate apps rejected, and how this one avoids them:
 <summary><b>Suggested listing text</b></summary>
 
 **Short description (80 chars):**
-Live USDT/LKR P2P rate widget with trend chart and rate alerts.
+USDT/LKR P2P rate and currency exchange widgets with charts, alerts and themes.
 
 **Full description:**
 
@@ -453,7 +562,11 @@ can't meet.
 • USDT ⇄ LKR converter priced from real adverts
 • Full order book with the best usable advert highlighted
 • Alerts when the rate rises above or falls below your target
+• Exchange Rate widget and converter for 300+ currencies (USD, EUR, GBP, AED…)
+• Nine colour themes, including Material You and OLED black, with adjustable widget transparency
+• Export your rate history as CSV
 • History stays on your phone. No account, no ads, no tracking.
+• Free and open source
 
 Uses public Binance P2P data. Not affiliated with Binance. Not financial advice.
 
@@ -464,4 +577,7 @@ Uses public Binance P2P data. Not affiliated with Binance. Not financial advice.
 ## Credits
 
 The data model and rate logic are ported from the macOS widget at
-[DFanso/p2p-lkr-widget](https://github.com/DFanso/p2p-lkr-widget).
+[DFanso/p2p-lkr-widget](https://github.com/DFanso/p2p-lkr-widget). Exchange rates come
+from [fawazahmed0/exchange-api](https://github.com/fawazahmed0/exchange-api).
+
+Released under the [MIT License](LICENSE), © 2026 Ruchira Edirisinghe and DFanso.

@@ -23,6 +23,12 @@ import dev.dfanso.lkrp2p.core.ThresholdDirection
 import dev.dfanso.lkrp2p.core.WireFormat
 import dev.dfanso.lkrp2p.data.Store
 import org.junit.Before
+import dev.dfanso.lkrp2p.core.FxDay
+import dev.dfanso.lkrp2p.data.FxRange
+import dev.dfanso.lkrp2p.data.FxRepository
+import dev.dfanso.lkrp2p.render.ColorTheme
+import kotlinx.coroutines.runBlocking
+import kotlin.math.sin
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -63,6 +69,12 @@ class AppScreensRenderTest {
         store.upsertAlert(AlertRule(side = Side.BUY, amountUsdt = size, threshold = 330.5, direction = ThresholdDirection.BELOW), AlertState.ARMED, null)
         store.upsertAlert(AlertRule(side = Side.BUY, amountUsdt = 1_000, threshold = 333.0, direction = ThresholdDirection.ABOVE), AlertState.ARMED, null)
         shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+        // Exchange rates from an offline fake, so no test touches the network.
+        FxRepository.installForTests(app) { date ->
+            val day = date ?: FxRepository.dayString(System.currentTimeMillis())
+            val ago = ((System.currentTimeMillis() / 86_400_000L) - FxRepository.parseDay(day) / 86_400).toDouble()
+            FxDay(day, mapOf("usd" to 1.0, "lkr" to 300.4 - ago * 0.05 + 0.6 * sin(ago / 4), "eur" to 0.86, "gbp" to 0.74, "aed" to 3.6725, "inr" to 88.7))
+        }.also { runBlocking { it.refresh(); it.backfill(FxRange.MONTH) } }
     }
 
     private fun shoot(
@@ -95,11 +107,11 @@ class AppScreensRenderTest {
         compose.waitForIdle()
     }
 
-    @Test fun rate() = shoot("rate") { vm, _ -> App(vm, Tab.RATE) }
+    @Test fun rate() = shoot("rate") { vm, _ -> App(vm, startTab = Tab.RATE) }
 
-    @Test fun ads() = shoot("ads") { vm, _ -> App(vm, Tab.ADS) }
+    @Test fun ads() = shoot("ads") { vm, _ -> App(vm, startTab = Tab.ADS) }
 
-    @Test fun alerts() = shoot("alerts") { vm, _ -> App(vm, Tab.ALERTS) }
+    @Test fun alerts() = shoot("alerts") { vm, _ -> App(vm, startTab = Tab.ALERTS) }
 
     @Test fun settings() = shoot("settings") { vm, _ -> App(vm, startInSettings = true) }
 
@@ -107,10 +119,21 @@ class AppScreensRenderTest {
     @Test fun rateFromLkr() = shoot("rate-lkr", prepare = { vm ->
         vm.swapConverter()
         vm.setConverterText("100000")
-    }) { vm, _ -> App(vm, Tab.RATE) }
+    }) { vm, _ -> App(vm, startTab = Tab.RATE) }
 
     /** The whole scrolling Rate page in one image. */
     @Test
     @Config(qualifiers = "w412dp-h1700dp-xxhdpi")
     fun rateFullPage() = shoot("rate-full") { vm, s -> RateScreen(s, vm, onOpenSettings = {}) }
+
+    @Test fun currencies() = shoot("currencies") { vm, _ -> App(vm, startTab = Tab.FX) }
+
+    @Test fun rateInOceanTheme() {
+        Ui.apply(app, ColorTheme.OCEAN)
+        try {
+            shoot("rate-ocean") { vm, _ -> App(vm, startTab = Tab.RATE) }
+        } finally {
+            Ui.apply(app, ColorTheme.DEFAULT)
+        }
+    }
 }

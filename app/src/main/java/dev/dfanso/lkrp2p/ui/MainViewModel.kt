@@ -21,6 +21,7 @@ import dev.dfanso.lkrp2p.data.Settings
 import dev.dfanso.lkrp2p.data.Snapshot
 import dev.dfanso.lkrp2p.data.Store
 import dev.dfanso.lkrp2p.widget.RateWidget
+import dev.dfanso.lkrp2p.widget.Widgets
 import dev.dfanso.lkrp2p.work.AlertNotifier
 import dev.dfanso.lkrp2p.work.CollectWorker
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +47,7 @@ data class UiState(
     val payment: PaymentMethod,
     val pollMinutes: Int,
     val defaultSide: Side,
+    val widgetOpacity: Int = 100,
     val rate: RateSnapshot? = null,
     /** Latest sample for each side, for the Sell/Buy switch and the spread. */
     val latest: Map<Side, Sample?> = emptyMap(),
@@ -79,6 +81,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             payment = settings.payment,
             pollMinutes = settings.pollMinutes,
             defaultSide = settings.side,
+            widgetOpacity = settings.widgetOpacity,
         )
     )
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -188,6 +191,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun trimNumber(value: Double, decimals: Int): String =
         "%.${decimals}f".format(java.util.Locale.US, value).trimEnd('0').trimEnd('.')
+
+    fun setWidgetOpacity(percent: Int) {
+        settings.widgetOpacity = percent
+        _state.update { it.copy(widgetOpacity = settings.widgetOpacity) }
+        viewModelScope.launch { Widgets.refreshAll(getApplication()) }
+    }
 
     fun setDefaultSide(side: Side) {
         settings.side = side

@@ -216,6 +216,26 @@ def sizes():
     return scaled(canvas, 1100).convert("RGB")
 
 
+def themes():
+    """The same compact widget in every colour theme, three to a row."""
+    names = [("emerald", "Emerald"), ("ocean", "Ocean"), ("amethyst", "Amethyst"),
+             ("sunset", "Sunset"), ("rose", "Rose"), ("gold", "Gold"),
+             ("graphite", "Graphite"), ("midnight", "Midnight (OLED)"), ("ocean-50pct", "Ocean, 50% background")]
+    imgs = [(widget(f"theme-{n}"), label) for n, label in names]
+    pad, gap, cap, cols = 70, 50, 90, 3
+    w, h = imgs[0][0].size
+    rows = (len(imgs) + cols - 1) // cols
+    canvas = wallpaper((pad * 2 + cols * w + (cols - 1) * gap, pad * 2 + rows * (h + cap) + (rows - 1) * gap))
+    d = ImageDraw.Draw(canvas)
+    f = font(42, bold=True)
+    for i, (img, label) in enumerate(imgs):
+        x = pad + (i % cols) * (w + gap)
+        y = pad + (i // cols) * (h + cap + gap)
+        canvas.alpha_composite(img, (x, y))
+        d.text((x + w / 2, y + h + cap / 2 + 10), label, font=f, fill=(255, 255, 255, 230), anchor="mm")
+    return scaled(canvas, 1200).convert("RGB")
+
+
 def save(img, name):
     path = os.path.join(OUT, name)
     img.save(path, optimize=True)
@@ -232,7 +252,11 @@ def main():
     save(scaled(labelled_row([("compact-4x2", "Up to date"), ("compact-4x2-stale", "Stale: no update for 3 hours")], 500), 1100),
          "widget-stale.png")
 
-    for name in ("rate", "ads", "alerts", "settings"):
+    save(scaled(labelled_row([("fx-full-4x4", "Full card"), ("fx-compact-4x2", "Compact"),
+                              ("fx-tiny-4x1", "Strip")], 1000), 1400), "widget-fx.png")
+    save(themes(), "widget-themes.png")
+
+    for name in ("rate", "currencies", "ads", "alerts", "settings", "rate-ocean"):
         save(phone(load(SCREENS, name), 400), f"screen-{name}.png")
     # The converter working from rupees: just the top of the screen.
     lkr = load(SCREENS, "rate-lkr")

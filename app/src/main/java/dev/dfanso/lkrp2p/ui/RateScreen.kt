@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
@@ -71,7 +72,6 @@ import dev.dfanso.lkrp2p.core.Trend
 import dev.dfanso.lkrp2p.data.RateSnapshot
 import dev.dfanso.lkrp2p.render.BackgroundPainter
 import dev.dfanso.lkrp2p.render.ChartPainter
-import dev.dfanso.lkrp2p.render.Palette
 import dev.dfanso.lkrp2p.widget.RateWidgetReceiver
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
@@ -107,7 +107,7 @@ fun RateScreen(state: UiState, vm: MainViewModel, onOpenSettings: () -> Unit) {
             StatusLine(state)
             if (!state.hasWidget) WidgetPromo()
             Text(
-                "Rates come from the public Binance P2P order book. Not affiliated with Binance. Not financial advice.",
+                "Rates come from the public Binance P2P order book. Free and open source. Not affiliated with Binance. Not financial advice.",
                 color = Ui.Faint, fontSize = 12.sp,
                 modifier = Modifier.padding(bottom = 16.dp),
             )
@@ -145,7 +145,7 @@ private fun ConverterCard(state: UiState, vm: MainViewModel) {
     BoxWithConstraints(Modifier.fillMaxWidth().clip(shape)) {
         val big = (maxWidth.value * 0.11f).coerceIn(30f, 46f)
         Canvas(Modifier.matchParentSize()) {
-            drawIntoCanvas { BackgroundPainter.draw(it.nativeCanvas, size.width, size.height, 28.dp.toPx()) }
+            drawIntoCanvas { BackgroundPainter.draw(it.nativeCanvas, size.width, size.height, 28.dp.toPx(), Ui.colors) }
         }
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             val topLabel = when {
@@ -259,7 +259,7 @@ private fun ChartCard(state: UiState, vm: MainViewModel) {
     val rate = state.rate
     var touched by remember(rate) { mutableStateOf<SeriesPoint?>(null) }
     val density = LocalDensity.current.density
-    val color = if (rate?.trend?.direction == Trend.Direction.DOWN) Palette.DOWN else Palette.UP
+    val color = if (rate?.trend?.direction == Trend.Direction.DOWN) Ui.colors.down else Ui.colors.up
 
     Panel(padding = 18.dp) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(48.dp)) {
@@ -352,6 +352,7 @@ private fun chartSpec(rate: RateSnapshot, color: Int, density: Float, highlight:
         showLabels = true,
         emptyMessage = if (rate.sample == null) "Collecting data…" else "Building history…",
         highlight = highlight,
+        baseColor = Ui.Surface.toArgb(),
     )
 
 private fun pointTime(point: SeriesPoint, window: ChartWindow): String {
@@ -433,7 +434,7 @@ private fun WidgetPromo() {
             ) { Text("Add widget") }
         } else {
             Text(
-                "Long-press your home screen, tap Widgets, then find USDT/LKR Rate.",
+                "Long-press your home screen, tap Widgets, then find USDT/LKR Rate. For any other currency pair, add the Exchange Rate widget.",
                 color = Ui.Text, fontSize = 14.sp,
             )
         }

@@ -42,9 +42,9 @@ object Palette {
  */
 object BackgroundPainter {
 
-    fun draw(canvas: Canvas, width: Float, height: Float, cornerPx: Float) {
+    fun draw(canvas: Canvas, width: Float, height: Float, cornerPx: Float, theme: ThemeColors) {
         val rect = RectF(0f, 0f, width, height)
-        val base = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.BASE }
+        val base = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = theme.base }
         canvas.drawRoundRect(rect, cornerPx, cornerPx, base)
 
         // The glow sits above the top edge, a third of the way across, and is
@@ -53,7 +53,7 @@ object BackgroundPainter {
         val glow = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             shader = RadialGradient(
                 width * 0.32f, -height * 0.04f, radius,
-                intArrayOf(Palette.GLOW, Palette.GLOW_MID, 0x00131313),
+                intArrayOf(theme.glow, theme.glowMid, theme.glowMid and 0x00FFFFFF),
                 floatArrayOf(0f, 0.45f, 1f),
                 Shader.TileMode.CLAMP,
             )
@@ -65,11 +65,11 @@ object BackgroundPainter {
      * The gradient is smooth, so it is rendered at reduced [scale] and stretched:
      * a full-resolution widget background would cost megabytes per update.
      */
-    fun bitmap(widthPx: Int, heightPx: Int, cornerPx: Float, scale: Float = 0.5f): Bitmap {
+    fun bitmap(widthPx: Int, heightPx: Int, cornerPx: Float, theme: ThemeColors, scale: Float = 0.5f): Bitmap {
         val w = max(1, (widthPx * scale).toInt())
         val h = max(1, (heightPx * scale).toInt())
         return createBitmap(w, h).also {
-            draw(Canvas(it), w.toFloat(), h.toFloat(), cornerPx * scale)
+            draw(Canvas(it), w.toFloat(), h.toFloat(), cornerPx * scale, theme)
         }
     }
 }
@@ -89,6 +89,12 @@ object ChartPainter {
         val zone: TimeZone = TimeZone.getDefault(),
         /** A point the user is touching, drawn with a crosshair. */
         val highlight: SeriesPoint? = null,
+        /** The ground the chart sits on, for the highlight ring's fill. */
+        val baseColor: Int = Palette.BASE,
+        /** Window-independent tick labels for daily data: "d MMM" instead of "HH:mm". */
+        val daily: Boolean = false,
+        /** How far back the x axis reaches; defaults to the window's length. */
+        val durationSec: Long = window.durationSec,
     )
 
     /** Where the plot sits and how time and price map onto it. */
@@ -118,7 +124,7 @@ object ChartPainter {
         val labelBand = if (spec.showLabels) labelPaint(d).textSize + 10f * d else 0f
         val points = spec.points
         val endSec = spec.nowSec
-        val windowStart = spec.nowSec - spec.window.durationSec
+        val windowStart = spec.nowSec - spec.durationSec
         val first = points.firstOrNull()?.timestampSec ?: windowStart
         // Span only the history that exists, but never less than an hour, so a
         // new install does not squeeze its first samples into a corner.
@@ -131,7 +137,7 @@ object ChartPainter {
 
     private val tickSteps = longArrayOf(
         300, 600, 900, 1_800, 3_600, 7_200, 10_800, 14_400, 21_600, 43_200,
-        86_400, 172_800, 259_200, 604_800,
+        86_400, 172_800, 259_200, 604_800, 1_209_600, 2_592_000,
     )
 
     fun draw(canvas: Canvas, width: Float, height: Float, spec: Spec) {
@@ -155,9 +161,10 @@ object ChartPainter {
             strokeWidth = max(1f, 0.8f * d)
             pathEffect = DashPathEffect(floatArrayOf(4f * d, 4f * d), 0f)
         }
-        val labelWidth = labelPaint.measureText(if (spec.window == ChartWindow.MONTH) "30 Sep" else "00:00")
+        val labelWidth = labelPaint.measureText(if (spec.window == ChartWindow.MONTH || spec.daily) "30 Sep" else "00:00")
         val maxTicks = max(2, floor((plotRight - plotLeft) / (labelWidth * 1.45f)).toInt())
-        val step = tickSteps.firstOrNull { (endSec - startSec) / it <= maxTicks } ?: tickSteps.last()
+        val step = tickSteps.firstOrNull { (endSec - startSec) / it <= maxTicks && (!spec.daily || it >= 86_400) }
+            ?: tickSteps.last()
         val format = SimpleDateFormat(
             when {
                 step < 86_400 -> "HH:mm"
@@ -210,6 +217,21 @@ object ChartPainter {
             strokeJoin = Paint.Join.ROUND
             strokeCap = Paint.Cap.ROUND
         }
+        // Bridge each gap with a faint dashed line: the price is unknown there,
+        // but the chart should still read as one series rather than scraps.
+        val bridge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = (spec.lineColor and 0x00FFFFFF) or 0x73000000
+            style = Paint.Style.STROKE
+            strokeWidth = 1.4f * d
+            strokeCap = Paint.Cap.ROUND
+            pathEffect = DashPathEffect(floatArrayOf(2f * d, 4f * d), 0f)
+        }
+        runs.zipWithNext { a, b ->
+            val from = a.last()
+            val to = b.first()
+            canvas.drawLine(x(from.timestampSec), y(from.price), x(to.timestampSec), y(to.price), bridge)
+        }
+
         for (run in runs) {
             val line = Path()
             run.forEachIndexed { i, p ->
@@ -244,7 +266,7 @@ object ChartPainter {
                 color = 0x66FFFFFF
                 strokeWidth = max(1f, d)
             })
-            canvas.drawCircle(hx, hy, 6f * d, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.BASE })
+            canvas.drawCircle(hx, hy, 6f * d, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = spec.baseColor or 0xFF000000.toInt() })
             canvas.drawCircle(hx, hy, 6f * d, Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = spec.lineColor
                 style = Paint.Style.STROKE

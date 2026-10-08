@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.core.content.edit
 import dev.dfanso.lkrp2p.core.PaymentMethod
 import dev.dfanso.lkrp2p.core.Side
+import dev.dfanso.lkrp2p.render.ColorTheme
 
 /**
  * App-wide preferences. Each widget instance keeps its own side and chart
@@ -25,6 +26,7 @@ class Settings(private val prefs: SharedPreferences) {
         /** Android's floor for periodic background work is 15 minutes. */
         const val POLL_MINUTES = 15
         val POLL_CHOICES = listOf(15, 30, 60)
+        val OPACITY_CHOICES = listOf(100, 85, 70, 50, 30, 0)
         val ORDER_SIZE_CHOICES = listOf(100, 500, 1_000, 5_000)
         const val RETENTION_DAYS = 30
 
@@ -52,6 +54,39 @@ class Settings(private val prefs: SharedPreferences) {
         get() = prefs.getInt("pollMinutes", Defaults.POLL_MINUTES)
             .takeIf { it in Defaults.POLL_CHOICES } ?: Defaults.POLL_MINUTES
         set(value) { if (value in Defaults.POLL_CHOICES) prefs.edit { putInt("pollMinutes", value) } }
+
+    /** The app's colours, and the default for widgets that follow the app. */
+    var appTheme: ColorTheme
+        get() = ColorTheme.fromKey(prefs.getString("appTheme", null)) ?: ColorTheme.DEFAULT
+        set(value) = prefs.edit { putString("appTheme", value.key) }
+
+    /** Widgets' theme when they have none of their own; null follows [appTheme]. */
+    var widgetTheme: ColorTheme?
+        get() = ColorTheme.fromKey(prefs.getString("widgetTheme", null))
+        set(value) = prefs.edit { putString("widgetTheme", value?.key) }
+
+    /** Widget background opacity, percent. */
+    var widgetOpacity: Int
+        get() = prefs.getInt("widgetOpacity", 100).takeIf { it in Defaults.OPACITY_CHOICES } ?: 100
+        set(value) { if (value in Defaults.OPACITY_CHOICES) prefs.edit { putInt("widgetOpacity", value) } }
+
+    /** The theme a widget without its own choice is drawn in. */
+    val effectiveWidgetTheme: ColorTheme get() = widgetTheme ?: appTheme
+
+    /** The currency converter's pair, also the default for new currency widgets. */
+    var fxFrom: String
+        get() = prefs.getString("fxFrom", null) ?: "usd"
+        set(value) = prefs.edit { putString("fxFrom", value.lowercase()) }
+
+    var fxTo: String
+        get() = prefs.getString("fxTo", null) ?: "lkr"
+        set(value) = prefs.edit { putString("fxTo", value.lowercase()) }
+
+    /** Pairs pinned to the top of the Currencies tab, as "usd/lkr". */
+    var fxFavorites: List<String>
+        get() = prefs.getString("fxFavorites", null)?.split(",")?.filter { "/" in it }
+            ?: listOf("usd/lkr", "eur/lkr", "gbp/lkr", "aed/lkr", "inr/lkr")
+        set(value) = prefs.edit { putString("fxFavorites", value.distinct().joinToString(",")) }
 
     companion object {
         @Volatile private var instance: Settings? = null

@@ -20,7 +20,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
+import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,21 +41,35 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.dfanso.lkrp2p.core.Formatting
 import dev.dfanso.lkrp2p.core.Trend
+import dev.dfanso.lkrp2p.render.ColorTheme
 import dev.dfanso.lkrp2p.render.Palette
 
-/** The widget's palette, extended with surfaces for the app. */
+/**
+ * The app's colours. The accent and ground come from the chosen [ColorTheme];
+ * reading them inside a composable subscribes it, so switching theme repaints
+ * the whole app at once.
+ */
 object Ui {
-    val Bg = Color(0xFF0E0E0E)
-    val Surface = Color(0xFF161616)
-    val Raised = Color(0xFF1F1F1F)
-    val Line = Color(0xFF2A2A2A)
+    internal var colors by mutableStateOf(ColorTheme.DEFAULT.preset!!)
+        private set
+
+    fun apply(context: Context, theme: ColorTheme) {
+        colors = theme.colors(context)
+    }
+
+    private fun lift(amount: Float) = lerp(Color(colors.base or 0xFF000000.toInt()), Color.White, amount)
+
+    val Bg get() = Color(colors.base or 0xFF000000.toInt())
+    val Surface get() = lift(0.035f)
+    val Raised get() = lift(0.07f)
+    val Line get() = lift(0.11f)
     val Text = Color.White
     val Dim = Color(Palette.TEXT_DIM)
     val Faint = Color(0x61FFFFFF)
-    val Up = Color(Palette.UP)
-    val Down = Color(Palette.DOWN)
+    val Up get() = Color(colors.up)
+    val Down get() = Color(colors.down)
     val Amber = Color(Palette.STALE)
-    val Coin = Color(0xFF1F9D78)
+    val Coin get() = Color(colors.coin)
 }
 
 @Composable
@@ -57,11 +77,11 @@ fun AppTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = darkColorScheme(
             primary = Ui.Up,
-            onPrimary = Color(0xFF00210F),
-            primaryContainer = Color(0xFF173A2A),
-            onPrimaryContainer = Color(0xFFCFF5E2),
-            secondaryContainer = Color(0xFF1E3A2C),
-            onSecondaryContainer = Color(0xFFCFF5E2),
+            onPrimary = Ui.Bg,
+            primaryContainer = Ui.Up.copy(alpha = 0.22f).compositeOver(Ui.Bg),
+            onPrimaryContainer = Ui.Up.copy(alpha = 0.25f).compositeOver(Color.White),
+            secondaryContainer = Ui.Up.copy(alpha = 0.18f).compositeOver(Ui.Bg),
+            onSecondaryContainer = Ui.Up.copy(alpha = 0.25f).compositeOver(Color.White),
             background = Ui.Bg,
             surface = Ui.Bg,
             surfaceContainer = Ui.Surface,
@@ -118,7 +138,7 @@ fun <T> Segmented(
         modifier
             .fillMaxWidth()
             .height(height)
-            .background(Color(0xFF111111), track)
+            .background(Ui.Bg, track)
             .border(1.dp, Ui.Line, track)
             .padding(3.dp),
         horizontalArrangement = Arrangement.spacedBy(3.dp),
@@ -130,7 +150,7 @@ fun <T> Segmented(
                     .weight(1f)
                     .fillMaxHeight()
                     .clip(RoundedCornerShape(11.dp))
-                    .background(if (isSelected) Color(0xFF262626) else Color.Transparent)
+                    .background(if (isSelected) Ui.Raised else Color.Transparent)
                     .clickable { onSelect(option) }
                     .semantics { role = Role.Tab; this.selected = isSelected },
                 horizontalAlignment = Alignment.CenterHorizontally,

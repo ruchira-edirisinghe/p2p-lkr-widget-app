@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.TextUnit
@@ -18,6 +20,8 @@ import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalContext
 import androidx.glance.LocalSize
+import androidx.glance.ColorFilter
+import androidx.glance.action.Action
 import androidx.glance.action.ActionParameters
 import androidx.glance.action.actionParametersOf
 import androidx.glance.action.actionStartActivity
@@ -61,6 +65,8 @@ import dev.dfanso.lkrp2p.data.Settings
 import dev.dfanso.lkrp2p.data.Store
 import dev.dfanso.lkrp2p.render.BackgroundPainter
 import dev.dfanso.lkrp2p.render.ChartPainter
+import dev.dfanso.lkrp2p.render.ColorTheme
+import dev.dfanso.lkrp2p.render.ThemeColors
 import dev.dfanso.lkrp2p.render.Palette
 import dev.dfanso.lkrp2p.ui.MainActivity
 import dev.dfanso.lkrp2p.work.CollectWorker
@@ -90,6 +96,9 @@ class RateWidget : GlanceAppWidget() {
         val SideKey = stringPreferencesKey("side")
         val WindowKey = stringPreferencesKey("window")
         val RefreshKey = longPreferencesKey("refreshedAt")
+
+        /** This instance's own theme; absent follows the widget theme in Settings. */
+        val ThemeKey = stringPreferencesKey("theme")
 
         /** Repaint every instance with fresh data from the store. */
         suspend fun refreshAll(context: Context) {
@@ -132,16 +141,19 @@ class RefreshAction : ActionCallback {
 // Layout
 // ---------------------------------------------------------------------------
 
-private val White = ColorProvider(Color.White)
-private val Dim = ColorProvider(Color(Palette.TEXT_DIM))
-private val Amber = ColorProvider(Color(Palette.STALE))
+internal val White = ColorProvider(Color.White)
+internal val Dim = ColorProvider(Color(Palette.TEXT_DIM))
+internal val Amber = ColorProvider(Color(Palette.STALE))
+
+/** The theme of the widget being composed. */
+internal val LocalWidgetColors = staticCompositionLocalOf { ColorTheme.DEFAULT.preset!! }
 
 /** Size-dependent metrics. Text is sized in dp, not sp, so it fits the box it was measured for. */
-private class Metrics(val widthDp: Float, val heightDp: Float, private val fontScale: Float) {
+internal class Metrics(val widthDp: Float, val heightDp: Float, private val fontScale: Float) {
     fun text(dp: Float): TextUnit = (dp / fontScale).sp
 }
 
-private fun Float.clamp(lo: Float, hi: Float) = coerceIn(lo, hi)
+internal fun Float.clamp(lo: Float, hi: Float) = coerceIn(lo, hi)
 
 // Glance has no LocalConfiguration; its LocalContext is the right source here.
 @SuppressLint("LocalContextConfigurationRead")
@@ -156,33 +168,67 @@ private fun WidgetContent() {
     val refreshed = prefs[RateWidget.RefreshKey] ?: 0L
 
     val data = remember(side, window, refreshed) { RateSnapshot.load(context, side, window) }
+    val m = Metrics(size.width.value, size.height.value, context.resources.configuration.fontScale)
+
+    WidgetFrame(prefs[RateWidget.ThemeKey], m, refreshed) { density ->
+        when {
+            m.heightDp >= 250 && m.widthDp >= 200 -> FullLayout(data, m, density)
+            m.heightDp >= 110 && m.widthDp >= 170 -> CompactLayout(data, m, density)
+            else -> TinyLayout(data, m, density)
+        }
+    }
+}
+
+/**
+ * The themed glow card every widget sits on. [themeKey] is the instance's own
+ * theme, if it has one; [refreshed] invalidates the cached colours so a theme
+ * change in Settings shows on the next repaint.
+ */
+// Glance's own LocalContext; the Compose lint check does not apply to it.
+@SuppressLint("LocalContextConfigurationRead", "LocalContextResourcesRead")
+@Composable
+internal fun WidgetFrame(
+    themeKey: String?,
+    m: Metrics,
+    refreshed: Long,
+    openTab: String? = null,
+    content: @Composable (density: Float) -> Unit,
+) {
+    val context = LocalContext.current
     val res = context.resources
     val density = res.displayMetrics.density
-    val m = Metrics(size.width.value, size.height.value, res.configuration.fontScale)
+    val settings = Settings.get(context)
+    val theme = ColorTheme.fromKey(themeKey) ?: settings.effectiveWidgetTheme
+    val opacity = settings.widgetOpacity
+    val colors = remember(theme, refreshed) { theme.colors(context) }
 
     val systemCorner = if (Build.VERSION.SDK_INT >= 31) {
         res.getDimension(android.R.dimen.system_app_widget_background_radius) / density
     } else 18f
     // A one-row strip with the full system radius turns into a pill.
     val cornerDp = minOf(systemCorner, m.heightDp * 0.24f)
-    val background = remember(size, cornerDp) {
+    val background = remember(m.widthDp, m.heightDp, cornerDp, colors, opacity) {
         BackgroundPainter.bitmap(
             (m.widthDp * density).toInt(), (m.heightDp * density).toInt(), cornerDp * density,
+            colors.withOpacity(opacity),
         )
     }
 
-    Box(
-        modifier = GlanceModifier
-            .fillMaxSize()
-            .appWidgetBackground()
-            .cornerRadius(cornerDp.dp)
-            .background(ImageProvider(background), ContentScale.FillBounds)
-            .clickable(actionStartActivity<MainActivity>()),
-    ) {
-        when {
-            m.heightDp >= 250 && m.widthDp >= 200 -> FullLayout(data, m, density)
-            m.heightDp >= 110 && m.widthDp >= 170 -> CompactLayout(data, m, density)
-            else -> TinyLayout(data, m, density)
+    CompositionLocalProvider(LocalWidgetColors provides colors) {
+        Box(
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .appWidgetBackground()
+                .cornerRadius(cornerDp.dp)
+                .background(ImageProvider(background), ContentScale.FillBounds)
+                .clickable(
+                    actionStartActivity<MainActivity>(
+                        openTab?.let { actionParametersOf(ActionParameters.Key<String>(MainActivity.EXTRA_TAB) to it) }
+                            ?: actionParametersOf()
+                    )
+                ),
+        ) {
+            content(density)
         }
     }
 }
@@ -392,7 +438,10 @@ private fun CurrencyBadge(icon: @Composable () -> Unit, code: String, m: Metrics
 @Composable
 private fun CoinGlyph(m: Metrics) {
     Box(
-        modifier = GlanceModifier.size(20.dp).background(ImageProvider(R.drawable.bg_coin)),
+        modifier = GlanceModifier.size(20.dp).background(
+            ImageProvider(R.drawable.bg_coin),
+            colorFilter = ColorFilter.tint(ColorProvider(Color(LocalWidgetColors.current.coin))),
+        ),
         contentAlignment = Alignment.Center,
     ) {
         Text("₮", style = TextStyle(color = White, fontSize = m.text(12f), fontWeight = FontWeight.Bold))
@@ -436,18 +485,19 @@ private fun RateRow(data: RateSnapshot, m: Metrics, size: Float, height: Float) 
     }
 }
 
-private fun Trend.chipStyle() = when (direction) {
-    Trend.Direction.UP -> Triple(R.drawable.bg_chip_up, "▲", Palette.UP)
-    Trend.Direction.DOWN -> Triple(R.drawable.bg_chip_down, "▼", Palette.DOWN)
+// The pill stays neutral so it suits every theme; the text carries the colour.
+private fun Trend.chipStyle(colors: ThemeColors) = when (direction) {
+    Trend.Direction.UP -> Triple(R.drawable.bg_chip_flat, "▲", colors.up)
+    Trend.Direction.DOWN -> Triple(R.drawable.bg_chip_flat, "▼", colors.down)
     Trend.Direction.FLAT -> Triple(R.drawable.bg_chip_flat, "■", Palette.TEXT_DIM)
 }
 
 private fun Trend.label(arrow: String) = "$arrow ${Formatting.percent(percent).trimStart('+', '-')}"
 
 @Composable
-private fun TrendChip(trend: Trend?, m: Metrics, size: Float) {
+internal fun TrendChip(trend: Trend?, m: Metrics, size: Float) {
     if (trend == null) return
-    val (bg, arrow, color) = trend.chipStyle()
+    val (bg, arrow, color) = trend.chipStyle(LocalWidgetColors.current)
     Box(
         modifier = GlanceModifier.background(ImageProvider(bg)).padding(horizontal = 7.dp, vertical = 3.dp),
     ) {
@@ -457,12 +507,12 @@ private fun TrendChip(trend: Trend?, m: Metrics, size: Float) {
 
 /** The chip's text without the pill, for strips too narrow to hold one. */
 @Composable
-private fun TrendText(
+internal fun TrendText(
     trend: Trend?,
     m: Metrics,
     size: Float,
-    arrow: String = trend?.chipStyle()?.second.orEmpty(),
-    color: Int = trend?.chipStyle()?.third ?: Palette.TEXT_DIM,
+    arrow: String = trend?.chipStyle(LocalWidgetColors.current)?.second.orEmpty(),
+    color: Int = trend?.chipStyle(LocalWidgetColors.current)?.third ?: Palette.TEXT_DIM,
 ) {
     if (trend == null) return
     Text(
@@ -474,7 +524,21 @@ private fun TrendText(
 
 /** Day | Week | Month, as in the reference's Week | Month | Year. */
 @Composable
-private fun Segmented(selected: ChartWindow, m: Metrics, height: Float) {
+private fun Segmented(selected: ChartWindow, m: Metrics, height: Float) =
+    WidgetSegmented(ChartWindow.entries, selected, { it.label }, m, height) {
+        actionRunCallback<SetWindowAction>(actionParametersOf(WindowParam to it.key))
+    }
+
+/** Day | Week | Month style control; [actionFor] is what tapping a segment does. */
+@Composable
+internal fun <T> WidgetSegmented(
+    options: List<T>,
+    selected: T,
+    label: (T) -> String,
+    m: Metrics,
+    height: Float,
+    actionFor: (T) -> Action,
+) {
     Row(
         modifier = GlanceModifier
             .fillMaxWidth()
@@ -483,18 +547,18 @@ private fun Segmented(selected: ChartWindow, m: Metrics, height: Float) {
             .padding(3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ChartWindow.entries.forEach { window ->
-            val isSelected = window == selected
+        options.forEach { option ->
+            val isSelected = option == selected
             Box(
                 modifier = GlanceModifier
                     .defaultWeight()
                     .height((height - 6f).dp)
                     .let { if (isSelected) it.background(ImageProvider(R.drawable.bg_segment_selected)) else it }
-                    .clickable(actionRunCallback<SetWindowAction>(actionParametersOf(WindowParam to window.key))),
+                    .clickable(actionFor(option)),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    window.label,
+                    label(option),
                     style = TextStyle(
                         color = if (isSelected) White else Dim,
                         fontSize = m.text(13.5f),
@@ -510,8 +574,9 @@ private fun Segmented(selected: ChartWindow, m: Metrics, height: Float) {
 
 @Composable
 private fun Chart(data: RateSnapshot, widthDp: Float, heightDp: Float, density: Float, showLabels: Boolean) {
-    val color = if (data.trend?.direction == Trend.Direction.DOWN) Palette.DOWN else Palette.UP
-    val bitmap = remember(data, widthDp, heightDp, showLabels) {
+    val colors = LocalWidgetColors.current
+    val color = if (data.trend?.direction == Trend.Direction.DOWN) colors.down else colors.up
+    val bitmap = remember(data, widthDp, heightDp, showLabels, color) {
         ChartPainter.bitmap(
             (widthDp * density).toInt(),
             (heightDp * density).toInt(),
@@ -524,6 +589,7 @@ private fun Chart(data: RateSnapshot, widthDp: Float, heightDp: Float, density: 
                 density = density,
                 showLabels = showLabels,
                 emptyMessage = if (data.sample == null) "Collecting data…" else "Building history…",
+                baseColor = colors.base,
             ),
         )
     }
