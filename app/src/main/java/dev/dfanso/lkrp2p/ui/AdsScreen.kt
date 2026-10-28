@@ -83,9 +83,11 @@ fun AdsScreen(state: UiState, vm: MainViewModel) {
                             }
                         }
                     }
+                    // With no ad able to take the order, price it at the top ad
+                    // rather than reporting "0 LKR".
+                    val worth = (best ?: ads.firstOrNull())?.price?.let { " (about ${Formatting.whole(amount * it)} LKR)" }.orEmpty()
                     Text(
-                        "${fillable.size} of ${ads.size} ads can take ${Formatting.usdt(amount.toDouble())} " +
-                            "(${Formatting.whole(amount * (best?.price ?: 0.0))} LKR) in one order." +
+                        "${fillable.size} of ${ads.size} ads can take ${Formatting.usdt(amount.toDouble())}$worth in one order." +
                             book(state)?.let { " Updated $it." }.orEmpty(),
                         color = Ui.Dim, fontSize = 13.sp,
                     )
