@@ -89,14 +89,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(refreshing = true, error = null) }
         viewModelScope.launch {
             val context = getApplication<Application>()
-            val outcomes = withContext(Dispatchers.IO) {
-                Poller(BinanceP2PClient(), store, settings, { rule, price ->
-                    AlertNotifier.present(context, rule, price)
-                }).pollOnce()
+            // Whatever fails, the spinner must stop: while `refreshing` is
+            // stuck, every later refresh is ignored.
+            var error: String? = null
+            try {
+                val outcomes = withContext(Dispatchers.IO) {
+                    Poller(BinanceP2PClient(), store, settings, { rule, price ->
+                        AlertNotifier.present(context, rule, price)
+                    }).pollOnce()
+                }
+                error = outcomes.filterIsInstance<PollOutcome.Failed>().firstOrNull()?.error?.let(::describe)
+                RateWidget.refreshAll(context)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                error = error ?: "Something went wrong while refreshing. Try again in a minute."
+            } finally {
+                _state.update { it.copy(refreshing = false, error = error) }
             }
-            val failure = outcomes.filterIsInstance<PollOutcome.Failed>().firstOrNull()
-            RateWidget.refreshAll(context)
-            _state.update { it.copy(refreshing = false, error = failure?.error?.let(::describe)) }
             reload()
         }
     }
