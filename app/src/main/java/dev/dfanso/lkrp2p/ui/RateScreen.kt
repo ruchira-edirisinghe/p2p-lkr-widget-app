@@ -67,7 +67,7 @@ import dev.dfanso.lkrp2p.core.ChartWindow
 import dev.dfanso.lkrp2p.core.Converter
 import dev.dfanso.lkrp2p.core.Formatting
 import dev.dfanso.lkrp2p.core.SeriesPoint
-import dev.dfanso.lkrp2p.core.Side
+import dev.dfanso.lkrp2p.core.PaymentMethod
 import dev.dfanso.lkrp2p.core.Trend
 import dev.dfanso.lkrp2p.data.RateSnapshot
 import dev.dfanso.lkrp2p.render.BackgroundPainter
@@ -92,14 +92,17 @@ fun RateScreen(state: UiState, vm: MainViewModel, onOpenSettings: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("USDT → LKR", color = Ui.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                    Text("Binance P2P · ${state.payment.displayName}", color = Ui.Dim, fontSize = 13.sp)
+                    Text("Binance P2P · Sell · ${PaymentMethod.BANK_SRI_LANKA.displayName}", color = Ui.Dim, fontSize = 13.sp)
                 }
                 IconButton(onClick = onOpenSettings) {
                     Icon(painterResource(R.drawable.ic_settings), "Settings", tint = Ui.Text)
                 }
             }
 
-            SideSwitch(state, vm)
+            Text(
+                "The best price a Sri Lanka bank transfer seller pays for your USDT.",
+                color = Ui.Dim, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 4.dp),
+            )
             state.error?.let { ErrorBanner(it, onRetry = vm::refresh) }
             ConverterCard(state, vm)
             ChartCard(state, vm)
@@ -115,47 +118,20 @@ fun RateScreen(state: UiState, vm: MainViewModel, onOpenSettings: () -> Unit) {
     }
 }
 
-/** Both live rates at a glance; picking one sets what the rest of the screen shows. */
-@Composable
-private fun SideSwitch(state: UiState, vm: MainViewModel) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Segmented(
-            options = Side.entries,
-            selected = state.side,
-            label = { if (it == Side.SELL) "Sell USDT" else "Buy USDT" },
-            sublabel = { Formatting.price(state.latest[it]?.fillablePrice) },
-            onSelect = vm::setSide,
-            height = 62.dp,
-        )
-        Text(
-            if (state.side == Side.SELL) "You give USDT and receive LKR in your bank."
-            else "You pay LKR from your bank and receive USDT.",
-            color = Ui.Dim, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 4.dp),
-        )
-    }
-}
-
 /** The widget's card, made interactive: type an amount in either currency. */
 @Composable
 private fun ConverterCard(state: UiState, vm: MainViewModel) {
     val shape = RoundedCornerShape(28.dp)
     val quote = state.quote
     val input = state.converter
-    val selling = state.side == Side.SELL
     BoxWithConstraints(Modifier.fillMaxWidth().clip(shape)) {
         val big = (maxWidth.value * 0.11f).coerceIn(30f, 46f)
         Canvas(Modifier.matchParentSize()) {
             drawIntoCanvas { BackgroundPainter.draw(it.nativeCanvas, size.width, size.height, 28.dp.toPx(), Ui.colors) }
         }
         Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            val topLabel = when {
-                input.isUsdt -> if (selling) "You sell" else "You buy"
-                else -> if (selling) "You receive" else "You pay"
-            }
-            val bottomLabel = when {
-                input.isUsdt -> if (selling) "You receive" else "You pay"
-                else -> if (selling) "You sell" else "You buy"
-            }
+            val topLabel = if (input.isUsdt) "You sell" else "You receive"
+            val bottomLabel = if (input.isUsdt) "You receive" else "You sell"
             Text(topLabel, color = Ui.Dim, fontSize = 13.sp)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(if (input.isUsdt) "₮" else "Rs", color = Ui.Text, fontSize = (big * 0.55f).sp, fontWeight = FontWeight.Medium)
@@ -362,14 +338,9 @@ private fun pointTime(point: SeriesPoint, window: ChartWindow): String {
 
 @Composable
 private fun StatsPanel(state: UiState) {
-    val sample = state.latest[state.side]
+    val sample = state.latest
     Panel {
         Row {
-            Stat(
-                "Buy − sell spread",
-                state.spread?.let { "${Formatting.price(it)} LKR" } ?: "—",
-                Modifier.weight(1f),
-            )
             Stat("Top ad", Formatting.price(sample?.topPrice), Modifier.weight(1f))
             Stat("Median of top 10", Formatting.price(sample?.medianTop10), Modifier.weight(1f))
         }
@@ -389,7 +360,7 @@ private fun StatusLine(state: UiState) {
             value = System.currentTimeMillis() / 1000
         }
     }
-    val sample = state.latest[state.side]
+    val sample = state.latest
     val stale = state.rate?.isStale == true && sample != null
     Text(
         buildString {

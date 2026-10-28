@@ -57,17 +57,14 @@ class AppScreensRenderTest {
         val store = Store.get(app)
         RenderSeed.seed(store, days = 7)
         val now = System.currentTimeMillis() / 1000
-        for (side in Side.entries) {
-            val file = "lkr-${side.wire.lowercase()}-20260907.json"
-            val ads = WireFormat.decodeAds(javaClass.classLoader!!.getResource(file)!!.readText())
-            store.replaceSnapshot(side, MetricsEngine.bestFirst(ads, side), now - 120)
-        }
+        val ads = WireFormat.decodeAds(javaClass.classLoader!!.getResource("lkr-sell-20260907.json")!!.readText())
+        store.replaceSnapshot(Side.SELL, MetricsEngine.bestFirst(ads, Side.SELL), now - 120)
         // One alert in each state the Alerts tab can show.
         val size = RenderSeed.ORDER_SIZE
         store.upsertAlert(AlertRule(side = Side.SELL, amountUsdt = size, threshold = 332.0, direction = ThresholdDirection.ABOVE), AlertState.ARMED, null)
         store.upsertAlert(AlertRule(side = Side.SELL, amountUsdt = size, threshold = 331.5, direction = ThresholdDirection.BELOW), AlertState.TRIGGERED, now - 1800)
-        store.upsertAlert(AlertRule(side = Side.BUY, amountUsdt = size, threshold = 330.5, direction = ThresholdDirection.BELOW), AlertState.ARMED, null)
-        store.upsertAlert(AlertRule(side = Side.BUY, amountUsdt = 1_000, threshold = 333.0, direction = ThresholdDirection.ABOVE), AlertState.ARMED, null)
+        store.upsertAlert(AlertRule(side = Side.SELL, amountUsdt = size, threshold = 330.5, direction = ThresholdDirection.BELOW), AlertState.ARMED, null)
+        store.upsertAlert(AlertRule(side = Side.SELL, amountUsdt = 1_000, threshold = 333.0, direction = ThresholdDirection.ABOVE), AlertState.ARMED, null)
         shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
         // Exchange rates from an offline fake, so no test touches the network.
         FxRepository.installForTests(app) { date ->

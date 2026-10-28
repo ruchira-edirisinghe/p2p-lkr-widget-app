@@ -45,7 +45,6 @@ class WidgetRenderTest {
             "full-4x4" to Shot(DpSize(330.dp, 360.dp)),
             "full-4x4-week" to Shot(DpSize(330.dp, 360.dp), window = "7d"),
             "full-4x4-month" to Shot(DpSize(330.dp, 360.dp), window = "30d"),
-            "full-4x4-buy" to Shot(DpSize(330.dp, 360.dp), side = "BUY"),
             "full-narrow-tall" to Shot(DpSize(270.dp, 430.dp)),
             "compact-4x2" to Shot(DpSize(330.dp, 170.dp)),
             "compact-3x2" to Shot(DpSize(240.dp, 150.dp)),
@@ -63,14 +62,13 @@ class WidgetRenderTest {
         render("compact-4x2-stale", Shot(DpSize(330.dp, 170.dp)))
     }
 
-    private class Shot(val size: DpSize, val side: String? = null, val window: String? = null)
+    private class Shot(val size: DpSize, val window: String? = null)
 
     private val out = File("build/widget-shots").apply { mkdirs() }
 
     private suspend fun render(name: String, shot: Shot) {
         val size = shot.size
         val state = mutablePreferencesOf().apply {
-            shot.side?.let { this[RateWidget.SideKey] = it }
             shot.window?.let { this[RateWidget.WindowKey] = it }
         }
         val density = context.resources.displayMetrics.density

@@ -54,7 +54,6 @@ import androidx.core.content.ContextCompat
 import dev.dfanso.lkrp2p.R
 import dev.dfanso.lkrp2p.core.AlertState
 import dev.dfanso.lkrp2p.core.Formatting
-import dev.dfanso.lkrp2p.core.Side
 import dev.dfanso.lkrp2p.core.ThresholdDirection
 import kotlin.math.abs
 
@@ -117,8 +116,8 @@ fun AlertsScreen(state: UiState, vm: MainViewModel) {
         NewAlertSheet(
             state = state,
             onDismiss = { sheetOpen = false },
-            onCreate = { side, direction, threshold ->
-                vm.addAlert(side, threshold, direction)
+            onCreate = { direction, threshold ->
+                vm.addAlert(threshold, direction)
                 sheetOpen = false
                 if (Build.VERSION.SDK_INT >= 33 && !notificationsAllowed) {
                     permission.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -134,7 +133,7 @@ private fun notificationsGranted(context: android.content.Context) =
 
 @Composable
 private fun EmptyAlerts(state: UiState) {
-    val now = state.latest[Side.SELL]?.fillablePrice
+    val now = state.latest?.fillablePrice
     Panel(padding = 20.dp) {
         Text("No alerts yet", color = Ui.Text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
         Text(
@@ -152,7 +151,7 @@ private fun EmptyAlerts(state: UiState) {
 @Composable
 private fun AlertCard(alert: AlertView, state: UiState, onDelete: () -> Unit) {
     val rule = alert.rule
-    val now = state.latest[rule.side]?.fillablePrice
+    val now = state.latest?.fillablePrice
     val rising = rule.direction == ThresholdDirection.ABOVE
     val triggered = alert.state == AlertState.TRIGGERED
     val otherSize = rule.amountUsdt != state.orderSize
@@ -160,7 +159,7 @@ private fun AlertCard(alert: AlertView, state: UiState, onDelete: () -> Unit) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    "${rule.side.label} rate ${if (rising) "rises to" else "falls to"} ${Formatting.price(rule.threshold)}",
+                    "Sell rate ${if (rising) "rises to" else "falls to"} ${Formatting.price(rule.threshold)}",
                     color = Ui.Text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
                 )
                 Text(
@@ -196,15 +195,14 @@ private fun AlertCard(alert: AlertView, state: UiState, onDelete: () -> Unit) {
 private fun NewAlertSheet(
     state: UiState,
     onDismiss: () -> Unit,
-    onCreate: (Side, ThresholdDirection, Double) -> Unit,
+    onCreate: (ThresholdDirection, Double) -> Unit,
 ) {
-    var side by rememberSaveable { mutableStateOf(state.side) }
     var direction by rememberSaveable { mutableStateOf(ThresholdDirection.ABOVE) }
-    val current = state.latest[side]?.fillablePrice
+    val current = state.latest?.fillablePrice
     var text by rememberSaveable { mutableStateOf("") }
     // Start from the live rate, nudged in the chosen direction, so the common
     // case is one tap.
-    LaunchedEffect(side, direction, current) {
+    LaunchedEffect(direction, current) {
         if (current != null) {
             val target = if (direction == ThresholdDirection.ABOVE) kotlin.math.ceil(current + 0.5) else kotlin.math.floor(current - 0.5)
             text = "%.2f".format(java.util.Locale.US, target)
@@ -218,9 +216,7 @@ private fun NewAlertSheet(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text("New alert", color = Ui.Text, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            SectionLabel("Which rate")
-            Segmented(Side.entries, side, { if (it == Side.SELL) "Sell rate" else "Buy rate" }, { side = it })
-            SectionLabel("Alert me when it")
+            SectionLabel("Alert me when the sell rate")
             Segmented(ThresholdDirection.entries, direction, { if (it == ThresholdDirection.ABOVE) "Rises to" else "Falls to" }, { direction = it })
             Row(verticalAlignment = Alignment.CenterVertically) {
                 OutlinedButton(onClick = { threshold?.let { text = "%.2f".format(java.util.Locale.US, it - 1) } }) { Text("−1") }
@@ -237,13 +233,13 @@ private fun NewAlertSheet(
                 OutlinedButton(onClick = { threshold?.let { text = "%.2f".format(java.util.Locale.US, it + 1) } }) { Text("+1") }
             }
             Text(
-                current?.let { "The ${side.label.lowercase()} rate is ${Formatting.price(it)} now." } ?: "No rate loaded yet.",
+                current?.let { "The sell rate is ${Formatting.price(it)} now." } ?: "No rate loaded yet.",
                 color = Ui.Dim, fontSize = 13.sp,
             )
             Spacer(Modifier.height(4.dp))
             Button(
                 enabled = threshold != null && threshold > 0,
-                onClick = { threshold?.let { onCreate(side, direction, it) } },
+                onClick = { threshold?.let { onCreate(direction, it) } },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
             ) { Text("Create alert", fontSize = 16.sp) }
         }

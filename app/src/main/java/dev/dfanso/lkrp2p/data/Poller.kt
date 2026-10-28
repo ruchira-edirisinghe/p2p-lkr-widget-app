@@ -25,9 +25,8 @@ fun interface AlertPresenter {
 }
 
 /**
- * Owns one polling cycle: fetch, compute, persist, alert. Both sides are
- * collected every cycle so any widget can flip between Sell and Buy and still
- * have history to chart.
+ * Owns one polling cycle: fetch, compute, persist, alert. Only the sell side
+ * ([Settings.side]) is collected; the app shows nothing else.
  */
 class Poller(
     private val source: AdSource,
@@ -43,7 +42,7 @@ class Poller(
      */
     suspend fun pollOnce(minSpacingSec: Long = 0): List<PollOutcome> = gate.withLock {
         val nowSec = System.currentTimeMillis() / 1000
-        val outcomes = Side.entries.map { side ->
+        val outcomes = listOf(settings.side).map { side ->
             val latest = store.latest(side, settings.amountUsdt)
             if (minSpacingSec > 0 && latest != null && nowSec - latest.timestampSec < minSpacingSec) {
                 PollOutcome.Skipped(side)

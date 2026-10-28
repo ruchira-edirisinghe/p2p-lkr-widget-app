@@ -58,7 +58,6 @@ import androidx.glance.unit.ColorProvider
 import dev.dfanso.lkrp2p.R
 import dev.dfanso.lkrp2p.core.ChartWindow
 import dev.dfanso.lkrp2p.core.Formatting
-import dev.dfanso.lkrp2p.core.Side
 import dev.dfanso.lkrp2p.core.Trend
 import dev.dfanso.lkrp2p.data.RateSnapshot
 import dev.dfanso.lkrp2p.data.Settings
@@ -93,7 +92,6 @@ class RateWidget : GlanceAppWidget() {
     }
 
     companion object {
-        val SideKey = stringPreferencesKey("side")
         val WindowKey = stringPreferencesKey("window")
         val RefreshKey = longPreferencesKey("refreshedAt")
 
@@ -121,12 +119,13 @@ class SetWindowAction : ActionCallback {
     }
 }
 
+/**
+ * Widgets drawn by 1.1 and earlier had a Sell/Buy switch wired to this class.
+ * The app is sell-only now; a tap that lands before the widget is redrawn
+ * just redraws it.
+ */
 class FlipSideAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        updateAppWidgetState(context, glanceId) { prefs ->
-            val current = Side.fromWire(prefs[RateWidget.SideKey]) ?: Settings.get(context).side
-            prefs[RateWidget.SideKey] = current.opposite.wire
-        }
         RateWidget().update(context, glanceId)
     }
 }
@@ -163,7 +162,7 @@ private fun WidgetContent() {
     val size = LocalSize.current
     val prefs = currentState<Preferences>()
     val settings = Settings.get(context)
-    val side = Side.fromWire(prefs[RateWidget.SideKey]) ?: settings.side
+    val side = settings.side
     val window = ChartWindow.fromKey(prefs[RateWidget.WindowKey]) ?: ChartWindow.DAY
     val refreshed = prefs[RateWidget.RefreshKey] ?: 0L
 
@@ -233,7 +232,7 @@ internal fun WidgetFrame(
     }
 }
 
-/** The reference design: 1 USDT, Sell/Buy switch, its price in LKR, period control, chart. */
+/** The reference design: 1 USDT, its sell price in LKR, period control, chart. */
 @Composable
 private fun FullLayout(data: RateSnapshot, m: Metrics, density: Float) {
     val pad = (m.widthDp * 0.065f).clamp(14f, 24f)
@@ -261,12 +260,12 @@ private fun FullLayout(data: RateSnapshot, m: Metrics, density: Float) {
     }
 
     Column(modifier = GlanceModifier.fillMaxSize().padding(pad.dp)) {
-        TitleRow(data, m, titleSize, titleH, showSideToggle = false)
+        TitleRow(data, m, titleSize, titleH, compact = false)
         Spacer(GlanceModifier.height(gap.dp))
         AmountRow(symbol = "₮", value = amountText, m = m, size = big, height = rowH) {
             CurrencyBadge(icon = { CoinGlyph(m) }, code = "USDT", m = m)
         }
-        SwapRow(data, m, swapH)
+        SideRow(data, m, swapH)
         AmountRow(symbol = "Rs", value = totalText, m = m, size = big, height = rowH) {
             CurrencyBadge(icon = { Text("🇱🇰", style = TextStyle(fontSize = m.text(15f))) }, code = "LKR", m = m)
         }
@@ -293,10 +292,10 @@ private fun CompactLayout(data: RateSnapshot, m: Metrics, density: Float) {
     val chartH = m.heightDp - pad * 2 - titleH - rowH - captionH - 6f
 
     Column(modifier = GlanceModifier.fillMaxSize().padding(pad.dp)) {
-        TitleRow(data, m, titleSize, titleH, showSideToggle = true)
+        TitleRow(data, m, titleSize, titleH, compact = true)
         RateRow(data, m, big, rowH)
         Text(
-            "per 1 USDT · ${data.side.label.lowercase()} rate",
+            "per 1 USDT · sell rate · SL bank",
             style = TextStyle(color = Dim, fontSize = m.text(captionSize)),
             maxLines = 1,
             modifier = GlanceModifier.height(captionH.dp),
@@ -332,7 +331,7 @@ private fun TinyLayout(data: RateSnapshot, m: Metrics, density: Float) {
                         if (chipInline) "USDT/LKR · ${data.side.label}" else data.side.label,
                         style = TextStyle(color = Dim, fontSize = m.text(11f)),
                         maxLines = 1,
-                        modifier = GlanceModifier.defaultWeight().clickable(actionRunCallback<FlipSideAction>()),
+                        modifier = GlanceModifier.defaultWeight(),
                     )
                     if (!chipInline) TrendText(data.trend, m, 11f)
                 }
@@ -361,18 +360,16 @@ private fun TinyLayout(data: RateSnapshot, m: Metrics, density: Float) {
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun TitleRow(data: RateSnapshot, m: Metrics, size: Float, height: Float, showSideToggle: Boolean) {
+private fun TitleRow(data: RateSnapshot, m: Metrics, size: Float, height: Float, compact: Boolean) {
     Row(
         modifier = GlanceModifier.fillMaxWidth().height(height.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            if (showSideToggle) "USDT/LKR · ${data.side.label}" else "P2P Rate · USDT/LKR",
+            if (compact) "USDT/LKR · ${data.side.label}" else "P2P Rate · USDT/LKR",
             style = TextStyle(color = White, fontSize = m.text(size), fontWeight = FontWeight.Medium),
             maxLines = 1,
-            modifier = GlanceModifier.defaultWeight().let {
-                if (showSideToggle) it.clickable(actionRunCallback<FlipSideAction>()) else it
-            },
+            modifier = GlanceModifier.defaultWeight(),
         )
         val time = data.sample?.let { DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it.timestampSec * 1000)) }
         Text(
@@ -448,17 +445,15 @@ private fun CoinGlyph(m: Metrics) {
     }
 }
 
-/** The ↓↑ row of the reference. Tapping it flips this widget between Sell and Buy. */
+/** Between the two amounts: what the rate is, and its trend. */
 @Composable
-private fun SwapRow(data: RateSnapshot, m: Metrics, height: Float) {
+private fun SideRow(data: RateSnapshot, m: Metrics, height: Float) {
     Row(
-        modifier = GlanceModifier.fillMaxWidth().height(height.dp).clickable(actionRunCallback<FlipSideAction>()),
+        modifier = GlanceModifier.fillMaxWidth().height(height.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Image(ImageProvider(R.drawable.ic_swap), contentDescription = "Switch Sell/Buy", modifier = GlanceModifier.size(18.dp))
-        Spacer(GlanceModifier.width(8.dp))
         Text(
-            "${data.side.label} rate · tap to switch",
+            "Sell rate · Sri Lanka bank transfer",
             style = TextStyle(color = Dim, fontSize = m.text(12.5f)),
             maxLines = 1,
             modifier = GlanceModifier.defaultWeight(),

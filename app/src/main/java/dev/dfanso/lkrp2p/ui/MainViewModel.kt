@@ -10,9 +10,7 @@ import dev.dfanso.lkrp2p.core.BinanceP2PClient
 import dev.dfanso.lkrp2p.core.ChartWindow
 import dev.dfanso.lkrp2p.core.Converter
 import dev.dfanso.lkrp2p.core.P2PError
-import dev.dfanso.lkrp2p.core.PaymentMethod
 import dev.dfanso.lkrp2p.core.Sample
-import dev.dfanso.lkrp2p.core.Side
 import dev.dfanso.lkrp2p.core.ThresholdDirection
 import dev.dfanso.lkrp2p.data.PollOutcome
 import dev.dfanso.lkrp2p.data.Poller
@@ -40,17 +38,14 @@ data class ConverterInput(val text: String = "1", val isUsdt: Boolean = true) {
 data class AlertView(val rule: AlertRule, val state: AlertState)
 
 data class UiState(
-    val side: Side,
     val window: ChartWindow,
     /** Ads must accept an order this big to count towards the rate. */
     val orderSize: Int,
-    val payment: PaymentMethod,
     val pollMinutes: Int,
-    val defaultSide: Side,
     val widgetOpacity: Int = 100,
     val rate: RateSnapshot? = null,
-    /** Latest sample for each side, for the Sell/Buy switch and the spread. */
-    val latest: Map<Side, Sample?> = emptyMap(),
+    /** The newest sell-rate sample. */
+    val latest: Sample? = null,
     val book: Snapshot? = null,
     val alerts: List<AlertView> = emptyList(),
     val converter: ConverterInput = ConverterInput(),
@@ -60,13 +55,6 @@ data class UiState(
 ) {
     val quote: Converter.Quote?
         get() = converter.amount?.let { Converter.quote(book?.ads.orEmpty(), rate?.price, it, converter.isUsdt) }
-
-    val spread: Double?
-        get() {
-            val buy = latest[Side.BUY]?.fillablePrice ?: return null
-            val sell = latest[Side.SELL]?.fillablePrice ?: return null
-            return buy - sell
-        }
 }
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -75,12 +63,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _state = MutableStateFlow(
         UiState(
-            side = settings.side,
             window = ChartWindow.DAY,
             orderSize = settings.amountUsdt,
-            payment = settings.payment,
             pollMinutes = settings.pollMinutes,
-            defaultSide = settings.side,
             widgetOpacity = settings.widgetOpacity,
         )
     )
@@ -93,8 +78,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Called when the app comes to the front; fetches when the newest rate is over a minute old. */
     fun refreshIfOld() {
         viewModelScope.launch {
-            val side = _state.value.side
-            val sample = withContext(Dispatchers.IO) { store.latest(side, settings.amountUsdt) }
+            val sample = withContext(Dispatchers.IO) { store.latest(settings.side, settings.amountUsdt) }
             val age = sample?.let { System.currentTimeMillis() / 1000 - it.timestampSec } ?: Long.MAX_VALUE
             if (age > 60) refresh() else reload()
         }
@@ -110,8 +94,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     AlertNotifier.present(context, rule, price)
                 }).pollOnce()
             }
-            val failure = outcomes.filterIsInstance<PollOutcome.Failed>()
-                .firstOrNull { it.side == _state.value.side }
+            val failure = outcomes.filterIsInstance<PollOutcome.Failed>().firstOrNull()
             RateWidget.refreshAll(context)
             _state.update { it.copy(refreshing = false, error = failure?.error?.let(::describe)) }
             reload()
@@ -122,7 +105,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun describe(error: P2PError): String = when (error) {
         is P2PError.Transport -> "Couldn't reach Binance. Check your internet connection."
         is P2PError.HttpStatus -> "Binance didn't answer (error ${error.code}). Try again in a minute."
-        is P2PError.EmptyResult -> "Binance returned no ads for this payment method right now."
+        is P2PError.EmptyResult -> "Binance returned no Sri Lanka bank transfer ads right now."
         else -> "Binance sent something unexpected. Try again in a minute."
     }
 
@@ -132,9 +115,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val context = getApplication<Application>()
             val loaded = withContext(Dispatchers.IO) {
                 Loaded(
-                    rate = RateSnapshot.load(context, s.side, s.window),
-                    latest = Side.entries.associateWith { store.latest(it, settings.amountUsdt) },
-                    book = store.snapshot(s.side),
+                    rate = RateSnapshot.load(context, settings.side, s.window),
+                    latest = store.latest(settings.side, settings.amountUsdt),
+                    book = store.snapshot(settings.side),
                     alerts = store.alertRules().map { AlertView(it, store.alertState(it.id) ?: AlertState.ARMED) },
                 )
             }
@@ -152,15 +135,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private class Loaded(
         val rate: RateSnapshot,
-        val latest: Map<Side, Sample?>,
+        val latest: Sample?,
         val book: Snapshot?,
         val alerts: List<AlertView>,
     )
-
-    fun setSide(side: Side) {
-        _state.update { it.copy(side = side) }
-        reload()
-    }
 
     fun setWindow(window: ChartWindow) {
         _state.update { it.copy(window = window) }
@@ -198,22 +176,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { Widgets.refreshAll(getApplication()) }
     }
 
-    fun setDefaultSide(side: Side) {
-        settings.side = side
-        _state.update { it.copy(defaultSide = side) }
-    }
-
     fun setOrderSize(amount: Int) {
         if (amount <= 0) return
         settings.amountUsdt = amount
         _state.update { it.copy(orderSize = amount) }
         // A new order size is a new series: collect its first point straight away.
-        refresh()
-    }
-
-    fun setPayment(payment: PaymentMethod) {
-        settings.payment = payment
-        _state.update { it.copy(payment = payment) }
         refresh()
     }
 
@@ -223,8 +190,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         CollectWorker.schedule(getApplication(), replace = true)
     }
 
-    fun addAlert(side: Side, threshold: Double, direction: ThresholdDirection) {
-        val rule = AlertRule(side = side, amountUsdt = settings.amountUsdt, threshold = threshold, direction = direction)
+    fun addAlert(threshold: Double, direction: ThresholdDirection) {
+        val rule = AlertRule(side = settings.side, amountUsdt = settings.amountUsdt, threshold = threshold, direction = direction)
         viewModelScope.launch(Dispatchers.IO) {
             store.upsertAlert(rule, AlertState.ARMED, null)
             reload()

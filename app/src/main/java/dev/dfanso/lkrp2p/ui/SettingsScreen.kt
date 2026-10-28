@@ -49,11 +49,10 @@ import androidx.core.net.toUri
 import dev.dfanso.lkrp2p.R
 import dev.dfanso.lkrp2p.core.Formatting
 import dev.dfanso.lkrp2p.core.PaymentMethod
-import dev.dfanso.lkrp2p.core.Side
 import dev.dfanso.lkrp2p.data.Settings
 import dev.dfanso.lkrp2p.widget.RateWidgetReceiver
 
-private enum class Dialog { ORDER_SIZE, PAYMENT, FREQUENCY, WIDGET_SIDE, OPACITY }
+private enum class Dialog { ORDER_SIZE, FREQUENCY, OPACITY }
 
 @Composable
 fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
@@ -117,8 +116,11 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
                     Formatting.usdt(state.orderSize.toDouble()),
                     "Only ads that accept an order this big count towards the rate. Most ads have a minimum.",
                 ) { dialog = Dialog.ORDER_SIZE }
-                SettingRow("Payment method", state.payment.displayName.substringBefore(" (")) { dialog = Dialog.PAYMENT }
             }
+            Text(
+                "Only sell offers from sellers who pay by ${PaymentMethod.BANK_SRI_LANKA.displayName} are tracked.",
+                color = Ui.Dim, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 4.dp),
+            )
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -146,16 +148,11 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
             }
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            SectionLabel("Widget", Modifier.padding(start = 4.dp))
-            Panel(padding = 8.dp) {
-                SettingRow(
-                    "New widgets show",
-                    "${state.defaultSide.label} rate",
-                    "Each widget can switch on its own with its ↓↑ button.",
-                ) { dialog = Dialog.WIDGET_SIDE }
-                val manager = AppWidgetManager.getInstance(context)
-                if (manager.isRequestPinAppWidgetSupported) {
+        val manager = AppWidgetManager.getInstance(context)
+        if (manager.isRequestPinAppWidgetSupported) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                SectionLabel("Widget", Modifier.padding(start = 4.dp))
+                Panel(padding = 8.dp) {
                     SettingRow("Add a widget to the home screen", "Add") {
                         manager.requestPinAppWidget(ComponentName(context, RateWidgetReceiver::class.java), null, null)
                     }
@@ -201,9 +198,6 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
         Dialog.ORDER_SIZE -> OrderSizeDialog(state.orderSize, onDismiss = { dialog = null }) {
             vm.setOrderSize(it); dialog = null
         }
-        Dialog.PAYMENT -> ChoiceDialog("Payment method", PaymentMethod.entries, state.payment, { it.displayName }, { dialog = null }) {
-            vm.setPayment(it); dialog = null
-        }
         Dialog.FREQUENCY -> ChoiceDialog("Check for a new rate", Settings.Defaults.POLL_CHOICES, state.pollMinutes, { "Every $it minutes" }, { dialog = null }) {
             vm.setPollMinutes(it); dialog = null
         }
@@ -212,9 +206,6 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
             { if (it == 0) "Transparent" else "$it% opaque" }, { dialog = null },
         ) {
             vm.setWidgetOpacity(it); dialog = null
-        }
-        Dialog.WIDGET_SIDE -> ChoiceDialog("New widgets show", Side.entries, state.defaultSide, { "${it.label} rate" }, { dialog = null }) {
-            vm.setDefaultSide(it); dialog = null
         }
         null -> Unit
     }

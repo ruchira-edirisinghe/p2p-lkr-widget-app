@@ -8,9 +8,9 @@ import dev.dfanso.lkrp2p.core.Side
 import dev.dfanso.lkrp2p.render.ColorTheme
 
 /**
- * App-wide preferences. Each widget instance keeps its own side and chart
- * window in Glance state; [side] here is only the default for new widgets and
- * for the in-app screen.
+ * App-wide preferences. The app tracks one market only: selling USDT to
+ * sellers who pay by Sri Lankan bank transfer, so [side] and [payment] are
+ * fixed. Each widget instance keeps its own chart window in Glance state.
  *
  * [amountUsdt] is the *order size*: an ad only counts if it accepts an order
  * this big. The rate itself is always shown per 1 USDT.
@@ -40,13 +40,9 @@ class Settings(private val prefs: SharedPreferences) {
         // than storing a value that guarantees an empty chart.
         set(value) { if (value > 0) prefs.edit { putInt("amountUsdt", value) } }
 
-    var side: Side
-        get() = Side.fromWire(prefs.getString("side", null)) ?: Defaults.SIDE
-        set(value) = prefs.edit { putString("side", value.wire) }
+    val side: Side get() = Defaults.SIDE
 
-    var payment: PaymentMethod
-        get() = PaymentMethod.fromWire(prefs.getString("payment", null)) ?: Defaults.PAYMENT
-        set(value) = prefs.edit { putString("payment", value.wire) }
+    val payment: PaymentMethod get() = Defaults.PAYMENT
 
     val fiat: String get() = Defaults.FIAT
 

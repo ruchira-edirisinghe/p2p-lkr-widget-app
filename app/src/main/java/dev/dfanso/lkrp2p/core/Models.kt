@@ -16,9 +16,12 @@ enum class Side(val wire: String, val label: String) {
     }
 }
 
+/**
+ * Only sellers who accept a Sri Lankan bank transfer are tracked. Generic
+ * "BANK" ads, mobile top-ups and the rest are a different market.
+ */
 enum class PaymentMethod(val wire: String, val displayName: String) {
-    BANK_SRI_LANKA("BankSriLanka", "Bank Transfer (Sri Lanka)"),
-    BANK_TRANSFER("BANK", "Bank Transfer");
+    BANK_SRI_LANKA("BankSriLanka", "Bank Transfer (Sri Lanka)");
 
     companion object {
         fun fromWire(value: String?): PaymentMethod? = entries.firstOrNull { it.wire == value }

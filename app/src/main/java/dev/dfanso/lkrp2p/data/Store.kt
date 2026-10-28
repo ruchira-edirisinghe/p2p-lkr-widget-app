@@ -66,6 +66,14 @@ class Store private constructor(context: Context) :
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
 
+    override fun onOpen(db: SQLiteDatabase) {
+        // Versions before 1.2 also tracked the buy side. Nothing reads it any
+        // more, so drop it rather than export or alert on it.
+        if (!db.isReadOnly) {
+            for (table in listOf("samples", "snapshot", "alerts")) db.delete(table, "side = ?", arrayOf(Side.BUY.wire))
+        }
+    }
+
     fun append(sample: Sample) {
         writableDatabase.insertOrThrow("samples", null, ContentValues().apply {
             put("ts", sample.timestampSec)

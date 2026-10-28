@@ -39,7 +39,7 @@ import dev.dfanso.lkrp2p.R
 import dev.dfanso.lkrp2p.core.Ad
 import dev.dfanso.lkrp2p.core.Formatting
 import dev.dfanso.lkrp2p.core.MetricsEngine
-import dev.dfanso.lkrp2p.core.Side
+import dev.dfanso.lkrp2p.core.PaymentMethod
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,12 +61,10 @@ fun AdsScreen(state: UiState, vm: MainViewModel) {
         ) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                    Text("Ads", color = Ui.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-                    Segmented(
-                        Side.entries, state.side,
-                        { if (it == Side.SELL) "Sell USDT" else "Buy USDT" },
-                        vm::setSide,
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Ads", color = Ui.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                        Text("Sellers who pay by ${PaymentMethod.BANK_SRI_LANKA.displayName}", color = Ui.Dim, fontSize = 13.sp)
+                    }
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         SectionLabel("Order size")
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -93,8 +91,7 @@ fun AdsScreen(state: UiState, vm: MainViewModel) {
                     )
                     OutlinedButton(
                         onClick = {
-                            val path = if (state.side == Side.SELL) "sell" else "buy"
-                            val url = "https://p2p.binance.com/trade/$path/USDT?fiat=LKR&payment=${state.payment.wire}"
+                            val url = "https://p2p.binance.com/trade/sell/USDT?fiat=LKR&payment=${PaymentMethod.BANK_SRI_LANKA.wire}"
                             context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
                         },
                         modifier = Modifier.fillMaxWidth(),
