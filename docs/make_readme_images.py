@@ -247,8 +247,8 @@ def main():
     save(hero(), "hero.png")
     save(anatomy(), "widget-anatomy.png")
     save(sizes(), "widget-sizes.png")
-    save(scaled(labelled_row([("full-4x4", "Day"), ("full-4x4-week", "Week"), ("full-4x4-month", "Month"),
-                              ("full-4x4-buy", "Buy rate")], 1000), 1400), "widget-views.png")
+    save(scaled(labelled_row([("full-4x4", "Day"), ("full-4x4-week", "Week"), ("full-4x4-month", "Month")], 1000), 1200),
+         "widget-views.png")
     save(scaled(labelled_row([("compact-4x2", "Up to date"), ("compact-4x2-stale", "Stale: no update for 3 hours")], 500), 1100),
          "widget-stale.png")
 
@@ -256,7 +256,7 @@ def main():
                               ("fx-tiny-4x1", "Strip")], 1000), 1400), "widget-fx.png")
     save(themes(), "widget-themes.png")
 
-    for name in ("rate", "currencies", "ads", "alerts", "settings", "rate-ocean"):
+    for name in ("rate", "currencies", "ads", "alerts", "settings", "rate-ocean", "splash"):
         save(phone(load(SCREENS, name), 400), f"screen-{name}.png")
     # The converter working from rupees: just the top of the screen.
     lkr = load(SCREENS, "rate-lkr")

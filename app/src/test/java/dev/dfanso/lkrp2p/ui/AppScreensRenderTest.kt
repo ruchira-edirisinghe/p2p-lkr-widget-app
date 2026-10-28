@@ -18,9 +18,12 @@ import dev.dfanso.lkrp2p.RenderSeed
 import dev.dfanso.lkrp2p.core.AlertRule
 import dev.dfanso.lkrp2p.core.AlertState
 import dev.dfanso.lkrp2p.core.MetricsEngine
+import dev.dfanso.lkrp2p.core.MoveAlertRule
+import dev.dfanso.lkrp2p.core.MoveDirection
 import dev.dfanso.lkrp2p.core.Side
 import dev.dfanso.lkrp2p.core.ThresholdDirection
 import dev.dfanso.lkrp2p.core.WireFormat
+import dev.dfanso.lkrp2p.data.Settings
 import dev.dfanso.lkrp2p.data.Store
 import org.junit.Before
 import dev.dfanso.lkrp2p.core.FxDay
@@ -65,6 +68,9 @@ class AppScreensRenderTest {
         store.upsertAlert(AlertRule(side = Side.SELL, amountUsdt = size, threshold = 331.5, direction = ThresholdDirection.BELOW), AlertState.TRIGGERED, now - 1800)
         store.upsertAlert(AlertRule(side = Side.SELL, amountUsdt = size, threshold = 330.5, direction = ThresholdDirection.BELOW), AlertState.ARMED, null)
         store.upsertAlert(AlertRule(side = Side.SELL, amountUsdt = 1_000, threshold = 333.0, direction = ThresholdDirection.ABOVE), AlertState.ARMED, null)
+        store.upsertMoveAlert(MoveAlertRule(amountUsdt = size, percent = 1.0, hours = 6, direction = MoveDirection.EITHER), AlertState.ARMED, null)
+        // Two sellers from the recorded book, starred on the Ads tab.
+        Settings.get(app).favoriteSellers = setOf("TD_TrustPay_LK", "Supuni_Tharanga")
         shadowOf(app).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
         // Exchange rates from an offline fake, so no test touches the network.
         FxRepository.installForTests(app) { date ->
@@ -122,6 +128,19 @@ class AppScreensRenderTest {
     @Test
     @Config(qualifiers = "w412dp-h1700dp-xxhdpi")
     fun rateFullPage() = shoot("rate-full") { vm, s -> RateScreen(s, vm, onOpenSettings = {}) }
+
+    /** The launch animation just after the blip lands. */
+    @Test fun splash() {
+        compose.mainClock.autoAdvance = false
+        compose.setContent { AppTheme { Box(Modifier.fillMaxSize().background(Ui.Bg)) { SplashOverlay(onFinished = {}) } } }
+        compose.mainClock.advanceTimeBy(1_300)
+        ShadowLooper.idleMainLooper()
+        val root = compose.activity.window.decorView
+        val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
+        compose.runOnUiThread { root.draw(Canvas(bitmap)) }
+        val out = File("build/app-shots").apply { mkdirs() }
+        File(out, "splash.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
 
     @Test fun currencies() = shoot("currencies") { vm, _ -> App(vm, startTab = Tab.FX) }
 
