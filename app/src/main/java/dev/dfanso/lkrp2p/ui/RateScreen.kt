@@ -107,6 +107,7 @@ fun RateScreen(state: UiState, vm: MainViewModel, onOpenSettings: () -> Unit) {
             ConverterCard(state, vm)
             ChartCard(state, vm)
             StatsPanel(state)
+            if (state.favoriteSellers.isNotEmpty()) FavoriteSellersPanel(state)
             StatusLine(state)
             if (!state.hasWidget) WidgetPromo()
             Text(
@@ -363,6 +364,38 @@ private fun StatsPanel(state: UiState) {
                 "The top ad often has a high minimum, so it can differ.",
             color = Ui.Dim, fontSize = 12.sp,
         )
+    }
+}
+
+/** The starred sellers' live prices, from the whole book whatever the seller filter says. */
+@Composable
+private fun FavoriteSellersPanel(state: UiState) {
+    val ads = state.book?.ads.orEmpty()
+    Panel {
+        Text("Your sellers", color = Ui.Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+        state.favoriteSellers.sorted().forEach { name ->
+            // A seller can run more than one ad; show their best.
+            val ad = ads.filter { it.advertiserName == name }.maxByOrNull { it.price }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(name, color = Ui.Text, fontSize = 15.sp, maxLines = 1)
+                    Text(
+                        when {
+                            ad == null -> "Not listed right now"
+                            ad.canFill(state.orderSize) -> "Takes ${Formatting.usdt(state.orderSize.toDouble())} orders"
+                            else -> "Can't take ${Formatting.usdt(state.orderSize.toDouble())} orders"
+                        },
+                        color = if (ad == null) Ui.Faint else Ui.Dim, fontSize = 12.sp,
+                    )
+                }
+                Text(
+                    Formatting.price(ad?.price),
+                    color = if (ad != null && ad.canFill(state.orderSize)) Ui.Up else Ui.Dim,
+                    fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+        Text("Star sellers on the Ads tab to follow them here.", color = Ui.Faint, fontSize = 12.sp)
     }
 }
 

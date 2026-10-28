@@ -54,6 +54,7 @@ data class UiState(
     val widgetOpacity: Int = 100,
     val statusNotification: Boolean = false,
     val dailySummary: Boolean = false,
+    val favoriteSellers: Set<String> = emptySet(),
     val sellerFilter: SellerFilter = SellerFilter(),
     val rate: RateSnapshot? = null,
     /** The newest sell-rate sample. */
@@ -83,6 +84,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             sellerFilter = settings.sellerFilter,
             statusNotification = settings.statusNotification,
             dailySummary = settings.dailySummary,
+            favoriteSellers = settings.favoriteSellers,
         )
     )
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -248,6 +250,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(statusNotification = on) }
         val context = getApplication<Application>()
         viewModelScope.launch(Dispatchers.IO) { RateNotifier.afterPoll(context) }
+    }
+
+    fun toggleFavoriteSeller(name: String) {
+        val current = settings.favoriteSellers
+        settings.favoriteSellers = if (name in current) current - name else current + name
+        _state.update { it.copy(favoriteSellers = settings.favoriteSellers) }
     }
 
     fun setDailySummary(on: Boolean) {

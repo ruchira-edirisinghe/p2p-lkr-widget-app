@@ -65,6 +65,14 @@ class Settings(private val prefs: SharedPreferences) {
             .takeIf { it in Defaults.POLL_CHOICES } ?: Defaults.POLL_MINUTES
         set(value) { if (value in Defaults.POLL_CHOICES) prefs.edit { putInt("pollMinutes", value) } }
 
+    /** Advertiser nicknames starred on the Ads tab. Stored as JSON: names can hold commas. */
+    var favoriteSellers: Set<String>
+        get() = prefs.getString("favoriteSellers", null)
+            ?.let { runCatching { org.json.JSONArray(it) }.getOrNull() }
+            ?.let { array -> (0 until array.length()).map(array::optString).filter(String::isNotEmpty).toSet() }
+            ?: emptySet()
+        set(value) = prefs.edit { putString("favoriteSellers", org.json.JSONArray(value.sorted()).toString()) }
+
     /** Keep the current rate in the notification bar. */
     var statusNotification: Boolean
         get() = prefs.getBoolean("statusNotification", false)

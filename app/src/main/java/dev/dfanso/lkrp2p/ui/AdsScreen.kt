@@ -112,7 +112,7 @@ fun AdsScreen(state: UiState, vm: MainViewModel) {
             if (ads.isEmpty()) {
                 item { Text("No ads loaded yet. Pull down to refresh.", color = Ui.Dim, fontSize = 14.sp) }
             }
-            items(fillable) { ad -> AdCard(ad, isBest = ad === best, fits = true, amount = amount) }
+            items(fillable) { ad -> AdCard(ad, isBest = ad === best, fits = true, amount = amount, state = state, vm = vm) }
 
             if (unfillable.isNotEmpty()) {
                 item {
@@ -126,7 +126,7 @@ fun AdsScreen(state: UiState, vm: MainViewModel) {
                             .padding(vertical = 12.dp),
                     )
                 }
-                if (showUnfillable) items(unfillable) { ad -> AdCard(ad, isBest = false, fits = false, amount = amount) }
+                if (showUnfillable) items(unfillable) { ad -> AdCard(ad, isBest = false, fits = false, amount = amount, state = state, vm = vm) }
             }
 
             if (filtered.isNotEmpty()) {
@@ -141,7 +141,9 @@ fun AdsScreen(state: UiState, vm: MainViewModel) {
                             .padding(vertical = 12.dp),
                     )
                 }
-                if (showFiltered) items(filtered) { ad -> AdCard(ad, isBest = false, fits = false, amount = amount, filteredOut = true) }
+                if (showFiltered) items(filtered) { ad ->
+                    AdCard(ad, isBest = false, fits = false, amount = amount, state = state, vm = vm, filteredOut = true)
+                }
             }
         }
     }
@@ -150,7 +152,16 @@ fun AdsScreen(state: UiState, vm: MainViewModel) {
 private fun book(state: UiState): String? = state.book?.let { Formatting.relativeAge(it.capturedAtSec) }
 
 @Composable
-private fun AdCard(ad: Ad, isBest: Boolean, fits: Boolean, amount: Int, filteredOut: Boolean = false) {
+private fun AdCard(
+    ad: Ad,
+    isBest: Boolean,
+    fits: Boolean,
+    amount: Int,
+    state: UiState,
+    vm: MainViewModel,
+    filteredOut: Boolean = false,
+) {
+    val favorite = ad.advertiserName in state.favoriteSellers
     val shape = RoundedCornerShape(18.dp)
     Column(
         Modifier
@@ -161,6 +172,16 @@ private fun AdCard(ad: Ad, isBest: Boolean, fits: Boolean, amount: Int, filtered
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                if (favorite) "★" else "☆",
+                color = if (favorite) Ui.Amber else Ui.Dim,
+                fontSize = 20.sp,
+                modifier = Modifier
+                    .clickable(onClickLabel = if (favorite) "Remove from your sellers" else "Add to your sellers") {
+                        vm.toggleFavoriteSeller(ad.advertiserName)
+                    }
+                    .padding(end = 8.dp),
+            )
             Text(
                 ad.advertiserName,
                 color = if (fits) Ui.Text else Ui.Dim,
