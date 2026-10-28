@@ -130,6 +130,27 @@ class CoreTest {
         assertEquals(listOf(false, true, false, false, true), fired)
     }
 
+    @Test fun moveAlertsAreEdgeTriggeredInTheirDirection() {
+        fun fires(direction: MoveDirection, changes: List<Double>): List<Boolean> {
+            val rule = MoveAlertRule(amountUsdt = 500, percent = 1.0, hours = 6, direction = direction)
+            var state = AlertState.ARMED
+            return changes.map { AlertEngine.evaluateMove(rule, it, state).also { d -> state = d.newState }.fire }
+        }
+        val path = listOf(0.4, 1.2, 1.5, 0.2, -1.1, 1.0)
+        assertEquals(listOf(false, true, false, false, false, true), fires(MoveDirection.UP, path))
+        assertEquals(listOf(false, false, false, false, true, false), fires(MoveDirection.DOWN, path))
+        assertEquals(listOf(false, true, false, false, true, false), fires(MoveDirection.EITHER, path))
+        assertEquals(1.0, AlertEngine.change(330.0, 333.3), 0.0001)
+    }
+
+    @Test fun sellerFilterNeedsBothBars() {
+        val ad = Ad(330.0, 500.0, 10_000.0, 500_000.0, 15, "x", monthOrderCount = 120, monthFinishRate = 0.95, positiveRate = 0.99)
+        assertTrue(SellerFilter().accepts(ad))
+        assertTrue(SellerFilter(minFinishPercent = 95, minMonthOrders = 100).accepts(ad))
+        assertFalse(SellerFilter(minFinishPercent = 98).accepts(ad))
+        assertFalse(SellerFilter(minMonthOrders = 500).accepts(ad))
+    }
+
     @Test fun downsampleAveragesBucketsAndKeepsGaps() {
         val series = listOf(
             SeriesPoint(0, 330.0), SeriesPoint(1_800, 332.0),

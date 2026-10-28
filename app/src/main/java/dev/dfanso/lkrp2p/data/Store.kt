@@ -10,6 +10,8 @@ import dev.dfanso.lkrp2p.core.AlertRule
 import dev.dfanso.lkrp2p.core.AlertState
 import dev.dfanso.lkrp2p.core.ChartWindow
 import dev.dfanso.lkrp2p.core.MetricsEngine
+import dev.dfanso.lkrp2p.core.MoveAlertRule
+import dev.dfanso.lkrp2p.core.MoveDirection
 import dev.dfanso.lkrp2p.core.Sample
 import dev.dfanso.lkrp2p.core.SeriesPoint
 import dev.dfanso.lkrp2p.core.Side
@@ -21,7 +23,7 @@ data class Snapshot(val capturedAtSec: Long, val ads: List<Ad>)
 
 /** SQLite history. Same schema as the macOS P2PKit store. */
 class Store private constructor(context: Context) :
-    SQLiteOpenHelper(context, "p2p.sqlite", null, 1) {
+    SQLiteOpenHelper(context, "p2p.sqlite", null, 2) {
 
     override fun onConfigure(db: SQLiteDatabase) {
         // The worker writes while the app or widget reads.
@@ -62,9 +64,29 @@ class Store private constructor(context: Context) :
             );
             """
         )
+        createMoveAlerts(db)
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) createMoveAlerts(db)
+    }
+
+    /** Version 2: alerts on a percentage move rather than a price level. */
+    private fun createMoveAlerts(db: SQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS move_alerts (
+                id TEXT PRIMARY KEY,
+                amount_usdt INTEGER NOT NULL,
+                percent REAL NOT NULL,
+                hours INTEGER NOT NULL,
+                direction TEXT NOT NULL,
+                state TEXT NOT NULL,
+                fired_at INTEGER
+            );
+            """
+        )
+    }
 
     override fun onOpen(db: SQLiteDatabase) {
         // Versions before 1.2 also tracked the buy side. Nothing reads it any
@@ -135,6 +157,20 @@ class Store private constructor(context: Context) :
         return MetricsEngine.downsample(raw, window.bucketSec)
     }
 
+    /**
+     * The oldest fillable price at or after [sinceSec]: the reference a move
+     * alert measures from. Null when nothing was collected in that window.
+     */
+    fun priceSince(side: Side, amountUsdt: Int, sinceSec: Long): Double? =
+        readableDatabase.rawQuery(
+            """
+            SELECT fillable_price FROM samples
+            WHERE side = ? AND amount_usdt = ? AND ts >= ? AND fillable_price IS NOT NULL
+            ORDER BY ts ASC LIMIT 1;
+            """,
+            arrayOf(side.wire, amountUsdt.toString(), sinceSec.toString()),
+        ).use { c -> if (c.moveToFirst()) c.getDouble(0) else null }
+
     /** Every stored sample as CSV, oldest first. */
     fun exportCsv(): String = buildString {
         appendLine("timestamp_utc,side,order_usdt,fillable_lkr,top_lkr,median_top10_lkr,advertiser")
@@ -159,7 +195,9 @@ class Store private constructor(context: Context) :
 
     @androidx.annotation.VisibleForTesting
     fun clearForTests() {
-        writableDatabase.apply { delete("samples", null, null); delete("snapshot", null, null); delete("alerts", null, null) }
+        writableDatabase.apply {
+            delete("samples", null, null); delete("snapshot", null, null); delete("alerts", null, null); delete("move_alerts", null, null)
+        }
     }
 
     fun prune(olderThanSec: Long): Int =
@@ -247,6 +285,38 @@ class Store private constructor(context: Context) :
 
     fun deleteAlert(id: String) {
         writableDatabase.delete("alerts", "id = ?", arrayOf(id))
+    }
+
+    fun upsertMoveAlert(rule: MoveAlertRule, state: AlertState, firedAtSec: Long?) {
+        val values = ContentValues().apply {
+            put("id", rule.id)
+            put("amount_usdt", rule.amountUsdt)
+            put("percent", rule.percent)
+            put("hours", rule.hours)
+            put("direction", rule.direction.name)
+            put("state", state.name)
+        }
+        val db = writableDatabase
+        if (firedAtSec != null) values.put("fired_at", firedAtSec)
+        val updated = db.update("move_alerts", values, "id = ?", arrayOf(rule.id))
+        if (updated == 0) db.insertOrThrow("move_alerts", null, values)
+    }
+
+    fun moveAlertRules(): List<Pair<MoveAlertRule, AlertState>> =
+        readableDatabase.rawQuery(
+            "SELECT id, amount_usdt, percent, hours, direction, state FROM move_alerts ORDER BY percent;", null,
+        ).use { c ->
+            buildList {
+                while (c.moveToNext()) {
+                    val direction = runCatching { MoveDirection.valueOf(c.getString(4)) }.getOrNull() ?: continue
+                    val state = runCatching { AlertState.valueOf(c.getString(5)) }.getOrNull() ?: AlertState.ARMED
+                    add(MoveAlertRule(c.getString(0), c.getInt(1), c.getDouble(2), c.getInt(3), direction) to state)
+                }
+            }
+        }
+
+    fun deleteMoveAlert(id: String) {
+        writableDatabase.delete("move_alerts", "id = ?", arrayOf(id))
     }
 
     private fun Cursor.col(name: String) = getColumnIndexOrThrow(name)

@@ -5,6 +5,7 @@ import dev.dfanso.lkrp2p.core.AlertEngine
 import dev.dfanso.lkrp2p.core.AlertRule
 import dev.dfanso.lkrp2p.core.AlertState
 import dev.dfanso.lkrp2p.core.MetricsEngine
+import dev.dfanso.lkrp2p.core.MoveAlertRule
 import dev.dfanso.lkrp2p.core.P2PError
 import dev.dfanso.lkrp2p.core.Sample
 import dev.dfanso.lkrp2p.core.Side
@@ -22,6 +23,9 @@ sealed interface PollOutcome {
 
 fun interface AlertPresenter {
     fun present(rule: AlertRule, price: Double)
+
+    /** A [MoveAlertRule] fired: the rate moved [changePercent] within its window. */
+    fun presentMove(rule: MoveAlertRule, price: Double, changePercent: Double) = Unit
 }
 
 /**
@@ -109,6 +113,15 @@ class Poller(
             val decision = AlertEngine.evaluate(rule, price, state)
             if (decision.fire) presenter.present(rule, price)
             store.upsertAlert(rule, decision.newState, if (decision.fire) nowSec else null)
+        }
+        for ((rule, state) in store.moveAlertRules()) {
+            if (rule.amountUsdt != amount) continue
+            // The just-stored sample is in the window, so a reference always exists.
+            val reference = store.priceSince(side, amount, nowSec - rule.hours * 3_600L) ?: continue
+            val change = AlertEngine.change(reference, price)
+            val decision = AlertEngine.evaluateMove(rule, change, state)
+            if (decision.fire) presenter.presentMove(rule, price, change)
+            store.upsertMoveAlert(rule, decision.newState, if (decision.fire) nowSec else null)
         }
     }
 }

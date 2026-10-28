@@ -14,7 +14,10 @@ import androidx.core.content.ContextCompat
 import dev.dfanso.lkrp2p.R
 import dev.dfanso.lkrp2p.core.AlertRule
 import dev.dfanso.lkrp2p.core.Formatting
+import dev.dfanso.lkrp2p.core.MoveAlertRule
+import dev.dfanso.lkrp2p.core.MoveDirection
 import dev.dfanso.lkrp2p.core.ThresholdDirection
+import dev.dfanso.lkrp2p.data.AlertPresenter
 import dev.dfanso.lkrp2p.ui.MainActivity
 
 object AlertNotifier {
@@ -29,15 +32,41 @@ object AlertNotifier {
         context.getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
+    /** What the poller calls when an alert of either kind fires. */
+    fun presenter(context: Context) = object : AlertPresenter {
+        override fun present(rule: AlertRule, price: Double) = AlertNotifier.present(context, rule, price)
+        override fun presentMove(rule: MoveAlertRule, price: Double, changePercent: Double) =
+            AlertNotifier.presentMove(context, rule, price, changePercent)
+    }
+
     fun present(context: Context, rule: AlertRule, price: Double) {
+        val verb = if (rule.direction == ThresholdDirection.ABOVE) "rose above" else "fell below"
+        notify(
+            context, rule.id.hashCode(),
+            title = "Sell rate $verb ${Formatting.price(rule.threshold)}",
+            text = "Now ${Formatting.price(price)} LKR per USDT for ${Formatting.usdt(rule.amountUsdt.toDouble())}",
+        )
+    }
+
+    fun presentMove(context: Context, rule: MoveAlertRule, price: Double, changePercent: Double) {
+        val verb = when {
+            rule.direction == MoveDirection.EITHER && changePercent < 0 -> "fell"
+            rule.direction == MoveDirection.EITHER -> "rose"
+            rule.direction == MoveDirection.UP -> "rose"
+            else -> "fell"
+        }
+        notify(
+            context, rule.id.hashCode(),
+            title = "Sell rate $verb ${Formatting.percent(changePercent).trimStart('+', '-')} in ${rule.hours}h",
+            text = "Now ${Formatting.price(price)} LKR per USDT for ${Formatting.usdt(rule.amountUsdt.toDouble())}",
+        )
+    }
+
+    private fun notify(context: Context, id: Int, title: String, text: String) {
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED
         ) return
-
-        val verb = if (rule.direction == ThresholdDirection.ABOVE) "rose above" else "fell below"
-        val title = "${rule.side.label} rate $verb ${Formatting.price(rule.threshold)}"
-        val text = "Now ${Formatting.price(price)} LKR per USDT for ${Formatting.usdt(rule.amountUsdt.toDouble())}"
         val open = PendingIntent.getActivity(
             context, 0,
             Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
@@ -51,6 +80,6 @@ object AlertNotifier {
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
-        NotificationManagerCompat.from(context).notify(rule.id.hashCode(), notification)
+        NotificationManagerCompat.from(context).notify(id, notification)
     }
 }

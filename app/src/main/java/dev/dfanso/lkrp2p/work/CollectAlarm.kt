@@ -39,7 +39,7 @@ class CollectAlarm : BroadcastReceiver() {
                         source = BinanceP2PClient(),
                         store = Store.get(app),
                         settings = Settings.get(app),
-                        presenter = { rule, price -> AlertNotifier.present(app, rule, price) },
+                        presenter = AlertNotifier.presenter(app),
                     ).pollOnce(minSpacingSec = 60)
                 }
                 refreshEverything(app)

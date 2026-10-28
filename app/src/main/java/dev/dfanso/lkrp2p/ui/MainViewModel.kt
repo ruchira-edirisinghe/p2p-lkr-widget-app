@@ -4,11 +4,14 @@ import android.app.Application
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import dev.dfanso.lkrp2p.core.AlertEngine
 import dev.dfanso.lkrp2p.core.AlertRule
 import dev.dfanso.lkrp2p.core.AlertState
 import dev.dfanso.lkrp2p.core.BinanceP2PClient
 import dev.dfanso.lkrp2p.core.ChartWindow
 import dev.dfanso.lkrp2p.core.Converter
+import dev.dfanso.lkrp2p.core.MoveAlertRule
+import dev.dfanso.lkrp2p.core.MoveDirection
 import dev.dfanso.lkrp2p.core.P2PError
 import dev.dfanso.lkrp2p.core.SellerFilter
 import dev.dfanso.lkrp2p.core.Sample
@@ -39,6 +42,9 @@ data class ConverterInput(val text: String = "1", val isUsdt: Boolean = true) {
 
 data class AlertView(val rule: AlertRule, val state: AlertState)
 
+/** [changePercent] is the move so far over the rule's window, when there is data. */
+data class MoveAlertView(val rule: MoveAlertRule, val state: AlertState, val changePercent: Double?)
+
 data class UiState(
     val window: ChartWindow,
     /** Ads must accept an order this big to count towards the rate. */
@@ -51,6 +57,7 @@ data class UiState(
     val latest: Sample? = null,
     val book: Snapshot? = null,
     val alerts: List<AlertView> = emptyList(),
+    val moveAlerts: List<MoveAlertView> = emptyList(),
     val converter: ConverterInput = ConverterInput(),
     val refreshing: Boolean = false,
     val error: String? = null,
@@ -107,9 +114,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             var error: String? = null
             try {
                 val outcomes = withContext(Dispatchers.IO) {
-                    Poller(BinanceP2PClient(), store, settings, { rule, price ->
-                        AlertNotifier.present(context, rule, price)
-                    }).pollOnce().also {
+                    Poller(BinanceP2PClient(), store, settings, AlertNotifier.presenter(context)).pollOnce().also {
                         // The official rate behind "Vs official"; a no-op unless a few hours old.
                         FxRepository.get(context).refreshIfDue()
                     }
@@ -146,6 +151,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     latest = store.latest(settings.side, settings.amountUsdt),
                     book = store.snapshot(settings.side),
                     alerts = store.alertRules().map { AlertView(it, store.alertState(it.id) ?: AlertState.ARMED) },
+                    moveAlerts = moveAlertViews(),
                 )
             }
             val hasWidget = runCatching {
@@ -154,7 +160,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _state.update {
                 it.copy(
                     rate = loaded.rate, latest = loaded.latest, book = loaded.book,
-                    alerts = loaded.alerts, hasWidget = hasWidget,
+                    alerts = loaded.alerts, moveAlerts = loaded.moveAlerts, hasWidget = hasWidget,
                 )
             }
         }
@@ -165,7 +171,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val latest: Sample?,
         val book: Snapshot?,
         val alerts: List<AlertView>,
+        val moveAlerts: List<MoveAlertView>,
     )
+
+    private fun moveAlertViews(): List<MoveAlertView> {
+        val now = System.currentTimeMillis() / 1000
+        val price = store.latest(settings.side, settings.amountUsdt)?.fillablePrice
+        return store.moveAlertRules().map { (rule, state) ->
+            val change = if (rule.amountUsdt == settings.amountUsdt && price != null) {
+                store.priceSince(settings.side, rule.amountUsdt, now - rule.hours * 3_600L)
+                    ?.let { AlertEngine.change(it, price) }
+            } else null
+            MoveAlertView(rule, state, change)
+        }
+    }
 
     fun setWindow(window: ChartWindow) {
         _state.update { it.copy(window = window) }
@@ -228,6 +247,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val rule = AlertRule(side = settings.side, amountUsdt = settings.amountUsdt, threshold = threshold, direction = direction)
         viewModelScope.launch(Dispatchers.IO) {
             store.upsertAlert(rule, AlertState.ARMED, null)
+            reload()
+        }
+    }
+
+    fun addMoveAlert(percent: Double, hours: Int, direction: MoveDirection) {
+        val rule = MoveAlertRule(amountUsdt = settings.amountUsdt, percent = percent, hours = hours, direction = direction)
+        viewModelScope.launch(Dispatchers.IO) {
+            store.upsertMoveAlert(rule, AlertState.ARMED, null)
+            reload()
+        }
+    }
+
+    fun deleteMoveAlert(id: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            store.deleteMoveAlert(id)
             reload()
         }
     }

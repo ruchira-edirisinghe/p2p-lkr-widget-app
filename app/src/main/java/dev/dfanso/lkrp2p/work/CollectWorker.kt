@@ -28,7 +28,7 @@ class CollectWorker(context: Context, params: WorkerParameters) : CoroutineWorke
             source = BinanceP2PClient(),
             store = Store.get(context),
             settings = Settings.get(context),
-            presenter = { rule, price -> AlertNotifier.present(context, rule, price) },
+            presenter = AlertNotifier.presenter(context),
         )
         val oneShot = tags.contains(TAG_ONE_SHOT)
         // The worker survives reboots and force-stops that drop alarms; revive the alarm chain.

@@ -56,6 +56,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import dev.dfanso.lkrp2p.R
 import dev.dfanso.lkrp2p.core.AlertState
 import dev.dfanso.lkrp2p.core.Formatting
+import dev.dfanso.lkrp2p.core.MoveDirection
 import dev.dfanso.lkrp2p.core.ThresholdDirection
 import kotlin.math.abs
 
@@ -81,13 +82,14 @@ fun AlertsScreen(state: UiState, vm: MainViewModel) {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Alerts", color = Ui.Text, fontSize = 26.sp, fontWeight = FontWeight.Bold)
                     Text(
-                        "Get a notification when the rate reaches your target. Each alert fires once, " +
-                            "then re-arms after the rate moves back.",
+                        "Get a notification when the sell rate reaches your target, or moves sharply. " +
+                            "Each alert fires once, then re-arms after the rate moves back.",
                         color = Ui.Dim, fontSize = 14.sp,
                     )
                 }
             }
-            if (state.alerts.isNotEmpty() && !notificationsAllowed) {
+            val anyAlerts = state.alerts.isNotEmpty() || state.moveAlerts.isNotEmpty()
+            if (anyAlerts && !notificationsAllowed) {
                 item {
                     Panel {
                         Text("Notifications are off", color = Ui.Amber, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
@@ -102,10 +104,13 @@ fun AlertsScreen(state: UiState, vm: MainViewModel) {
                     }
                 }
             }
-            if (state.alerts.isEmpty()) {
+            if (!anyAlerts) {
                 item { EmptyAlerts(state) }
             }
             items(state.alerts, key = { it.rule.id }) { alert -> AlertCard(alert, state, onDelete = { vm.deleteAlert(alert.rule.id) }) }
+            items(state.moveAlerts, key = { it.rule.id }) { alert ->
+                MoveAlertCard(alert, state, onDelete = { vm.deleteMoveAlert(alert.rule.id) })
+            }
         }
 
         ExtendedFloatingActionButton(
@@ -122,6 +127,13 @@ fun AlertsScreen(state: UiState, vm: MainViewModel) {
             onDismiss = { sheetOpen = false },
             onCreate = { direction, threshold ->
                 vm.addAlert(threshold, direction)
+                sheetOpen = false
+                if (Build.VERSION.SDK_INT >= 33 && !notificationsAllowed) {
+                    permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            },
+            onCreateMove = { percent, hours, direction ->
+                vm.addMoveAlert(percent, hours, direction)
                 sheetOpen = false
                 if (Build.VERSION.SDK_INT >= 33 && !notificationsAllowed) {
                     permission.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -196,13 +208,71 @@ private fun AlertCard(alert: AlertView, state: UiState, onDelete: () -> Unit) {
     }
 }
 
+@Composable
+private fun MoveAlertCard(alert: MoveAlertView, state: UiState, onDelete: () -> Unit) {
+    val rule = alert.rule
+    val change = alert.changePercent
+    val triggered = alert.state == AlertState.TRIGGERED
+    val otherSize = rule.amountUsdt != state.orderSize
+    Panel {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(moveSentence(rule.direction, rule.percent, rule.hours), color = Ui.Text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    when {
+                        otherSize -> "Set for ${Formatting.usdt(rule.amountUsdt.toDouble())} orders. Paused until you switch back to that order size."
+                        change == null -> "Waiting for enough history"
+                        triggered -> "Reached: ${Formatting.percent(change)} over ${rule.hours}h. Will alert again after it settles."
+                        else -> "${Formatting.percent(change)} over the last ${rule.hours}h"
+                    },
+                    color = Ui.Dim, fontSize = 13.sp,
+                )
+            }
+            IconButton(onClick = onDelete) {
+                Icon(painterResource(R.drawable.ic_delete), "Delete alert", tint = Ui.Dim)
+            }
+        }
+        val (label, color) = when {
+            otherSize -> "Paused" to Ui.Faint
+            triggered -> "Reached" to Ui.Up
+            else -> "Watching" to Ui.Dim
+        }
+        Text(
+            label, color = color, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+            modifier = Modifier
+                .background(color.copy(alpha = 0.14f), RoundedCornerShape(50))
+                .padding(horizontal = 9.dp, vertical = 3.dp),
+        )
+    }
+}
+
+private fun moveSentence(direction: MoveDirection, percent: Double, hours: Int): String {
+    val verb = when (direction) {
+        MoveDirection.UP -> "rises"
+        MoveDirection.DOWN -> "falls"
+        MoveDirection.EITHER -> "moves"
+    }
+    val amount = String.format(java.util.Locale.US, "%.2f", percent).trimEnd('0').trimEnd('.')
+    return "Sell rate $verb $amount% within ${if (hours == 1) "1 hour" else "$hours hours"}"
+}
+
+private enum class AlertKind { PRICE, MOVE }
+
+private val MOVE_WINDOWS = listOf(1, 6, 24)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NewAlertSheet(
     state: UiState,
     onDismiss: () -> Unit,
     onCreate: (ThresholdDirection, Double) -> Unit,
+    onCreateMove: (Double, Int, MoveDirection) -> Unit,
 ) {
+    var kind by rememberSaveable { mutableStateOf(AlertKind.PRICE) }
+    var moveDirection by rememberSaveable { mutableStateOf(MoveDirection.EITHER) }
+    var moveHours by rememberSaveable { mutableStateOf(6) }
+    var percentText by rememberSaveable { mutableStateOf("1") }
+    val percent = percentText.toDoubleOrNull()?.takeIf { it > 0 && it < 100 }
     var direction by rememberSaveable { mutableStateOf(ThresholdDirection.ABOVE) }
     val current = state.latest?.fillablePrice
     var text by rememberSaveable { mutableStateOf("") }
@@ -224,32 +294,76 @@ private fun NewAlertSheet(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text("New alert", color = Ui.Text, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            SectionLabel("Alert me when the sell rate")
-            Segmented(ThresholdDirection.entries, direction, { if (it == ThresholdDirection.ABOVE) "Rises to" else "Falls to" }, { direction = it })
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                OutlinedButton(onClick = { threshold?.let { text = "%.2f".format(java.util.Locale.US, it - 1) } }) { Text("−1") }
-                Spacer(Modifier.width(10.dp))
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { input -> text = input.filter { it.isDigit() || it == '.' }.take(9) },
-                    label = { Text("LKR per USDT") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f),
+            Segmented(AlertKind.entries, kind, { if (it == AlertKind.PRICE) "Price target" else "Sharp move" }, { kind = it })
+            if (kind == AlertKind.MOVE) {
+                MoveAlertForm(
+                    direction = moveDirection, onDirection = { moveDirection = it },
+                    percentText = percentText, onPercentText = { percentText = it }, percent = percent,
+                    hours = moveHours, onHours = { moveHours = it },
                 )
-                Spacer(Modifier.width(10.dp))
-                OutlinedButton(onClick = { threshold?.let { text = "%.2f".format(java.util.Locale.US, it + 1) } }) { Text("+1") }
+                Spacer(Modifier.height(4.dp))
+                Button(
+                    enabled = percent != null,
+                    onClick = { percent?.let { onCreateMove(it, moveHours, moveDirection) } },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                ) { Text("Create alert", fontSize = 16.sp) }
+            } else {
+                SectionLabel("Alert me when the sell rate")
+                Segmented(ThresholdDirection.entries, direction, { if (it == ThresholdDirection.ABOVE) "Rises to" else "Falls to" }, { direction = it })
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(onClick = { threshold?.let { text = "%.2f".format(java.util.Locale.US, it - 1) } }) { Text("−1") }
+                    Spacer(Modifier.width(10.dp))
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { input -> text = input.filter { it.isDigit() || it == '.' }.take(9) },
+                        label = { Text("LKR per USDT") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    OutlinedButton(onClick = { threshold?.let { text = "%.2f".format(java.util.Locale.US, it + 1) } }) { Text("+1") }
+                }
+                Text(
+                    current?.let { "The sell rate is ${Formatting.price(it)} now." } ?: "No rate loaded yet.",
+                    color = Ui.Dim, fontSize = 13.sp,
+                )
+                Spacer(Modifier.height(4.dp))
+                Button(
+                    enabled = threshold != null && threshold > 0,
+                    onClick = { threshold?.let { onCreate(direction, it) } },
+                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                ) { Text("Create alert", fontSize = 16.sp) }
             }
-            Text(
-                current?.let { "The sell rate is ${Formatting.price(it)} now." } ?: "No rate loaded yet.",
-                color = Ui.Dim, fontSize = 13.sp,
-            )
-            Spacer(Modifier.height(4.dp))
-            Button(
-                enabled = threshold != null && threshold > 0,
-                onClick = { threshold?.let { onCreate(direction, it) } },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-            ) { Text("Create alert", fontSize = 16.sp) }
         }
     }
+}
+
+@Composable
+private fun MoveAlertForm(
+    direction: MoveDirection,
+    onDirection: (MoveDirection) -> Unit,
+    percentText: String,
+    onPercentText: (String) -> Unit,
+    percent: Double?,
+    hours: Int,
+    onHours: (Int) -> Unit,
+) {
+    SectionLabel("Alert me when the sell rate")
+    Segmented(MoveDirection.entries, direction, { it.label }, onDirection)
+    OutlinedTextField(
+        value = percentText,
+        onValueChange = { input -> onPercentText(input.filter { it.isDigit() || it == '.' }.take(5)) },
+        label = { Text("By at least (%)") },
+        singleLine = true,
+        isError = percent == null,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    SectionLabel("Within")
+    Segmented(MOVE_WINDOWS, hours, { if (it == 1) "1 hour" else "$it hours" }, onHours)
+    Text(
+        percent?.let { moveSentence(direction, it, hours) + "." } ?: "Enter a percentage between 0 and 100.",
+        color = Ui.Dim, fontSize = 13.sp,
+    )
 }
