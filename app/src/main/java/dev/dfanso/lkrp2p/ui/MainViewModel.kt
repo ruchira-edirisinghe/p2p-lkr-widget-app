@@ -84,9 +84,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun refresh() {
-        if (_state.value.refreshing) return
-        _state.update { it.copy(refreshing = true, error = null) }
+    /** True while a fetch started here is running, shown with a spinner or not. */
+    private var polling = false
+
+    /**
+     * Fetches a fresh rate. [silent] is the open app's once-a-minute live
+     * update: no pull-to-refresh spinner, and an earlier error stays until a
+     * fetch succeeds.
+     */
+    fun refresh(silent: Boolean = false) {
+        if (polling) return
+        polling = true
+        if (!silent) _state.update { it.copy(refreshing = true, error = null) }
         viewModelScope.launch {
             val context = getApplication<Application>()
             // Whatever fails, the spinner must stop: while `refreshing` is
@@ -104,6 +113,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 error = error ?: "Something went wrong while refreshing. Try again in a minute."
             } finally {
+                polling = false
                 _state.update { it.copy(refreshing = false, error = error) }
             }
             reload()

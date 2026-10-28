@@ -30,7 +30,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.dfanso.lkrp2p.R
 import dev.dfanso.lkrp2p.data.Settings
@@ -58,6 +63,16 @@ class MainActivity : ComponentActivity() {
         requestedTab.value = tabFrom(intent)
         setContent { AppTheme { App(vm, fxVm, requestedTab) } }
 
+        // Live while on screen: background polls can't run more often than
+        // every 15 minutes, but the open app can. Stops when it goes away.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                while (true) {
+                    delay(LIVE_REFRESH_MS)
+                    vm.refresh(silent = true)
+                }
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -69,6 +84,9 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_TAB = "tab"
+
+        /** How often the open app fetches a new rate. */
+        const val LIVE_REFRESH_MS = 60_000L
     }
 
     override fun onStart() {

@@ -49,7 +49,8 @@ object Formatting {
     fun relativeAge(timestampSec: Long, nowSec: Long = System.currentTimeMillis() / 1000): String {
         val seconds = nowSec - timestampSec
         return when {
-            seconds < 60 -> "just now"
+            seconds < 10 -> "just now"
+            seconds < 60 -> "${seconds}s ago"
             seconds < 3_600 -> "${seconds / 60}m ago"
             seconds < 86_400 -> "${seconds / 3_600}h ago"
             else -> "${seconds / 86_400}d ago"

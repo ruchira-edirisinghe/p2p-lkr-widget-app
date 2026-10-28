@@ -356,7 +356,7 @@ private fun StatsPanel(state: UiState) {
 private fun StatusLine(state: UiState) {
     val now by produceState(System.currentTimeMillis() / 1000) {
         while (true) {
-            delay(20_000)
+            delay(5_000)
             value = System.currentTimeMillis() / 1000
         }
     }
@@ -365,7 +365,7 @@ private fun StatusLine(state: UiState) {
     Text(
         buildString {
             append(if (sample == null) "No rate yet" else "Updated ${Formatting.relativeAge(sample.timestampSec, now)}")
-            append(" · refreshes every ${state.pollMinutes} min · pull down to refresh now")
+            append(" · live every minute while open, every ${state.pollMinutes} min in the background")
         },
         color = if (stale) Ui.Amber else Ui.Dim,
         fontSize = 12.sp,
