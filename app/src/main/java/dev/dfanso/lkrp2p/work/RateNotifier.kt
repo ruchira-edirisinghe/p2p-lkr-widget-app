@@ -22,6 +22,11 @@ import java.util.Date
 object RateNotifier {
     private const val STATUS_CHANNEL = "rate-status"
     private const val STATUS_ID = 1001
+    private const val SUMMARY_CHANNEL = "daily-summary"
+    private const val SUMMARY_ID = 1002
+
+    /** The summary goes out with the first poll at or after this local hour. */
+    const val SUMMARY_HOUR = 9
 
     fun createChannels(context: Context) {
         val status = NotificationChannel(STATUS_CHANNEL, "Rate in notification bar", NotificationManager.IMPORTANCE_LOW)
@@ -29,13 +34,50 @@ object RateNotifier {
                 description = "The current sell rate, kept in the notification bar while you have it switched on"
                 setShowBadge(false)
             }
-        context.getSystemService(NotificationManager::class.java).createNotificationChannel(status)
+        val summary = NotificationChannel(SUMMARY_CHANNEL, "Daily summary", NotificationManager.IMPORTANCE_DEFAULT)
+            .apply { description = "Each morning: the last 24 hours' low, high and average sell rate" }
+        context.getSystemService(NotificationManager::class.java).createNotificationChannels(listOf(status, summary))
     }
 
     /** Called after every poll, wherever it ran. */
     fun afterPoll(context: Context) {
         val settings = Settings.get(context)
         if (settings.statusNotification) showStatus(context, settings) else cancelStatus(context)
+        if (settings.dailySummary) maybeSendSummary(context, settings)
+    }
+
+    /**
+     * No scheduler of its own: background polls run every 15 to 60 minutes
+     * anyway, so the first one after [SUMMARY_HOUR] sends it, once a day.
+     */
+    private fun maybeSendSummary(context: Context, settings: Settings) {
+        val now = java.util.Calendar.getInstance()
+        if (now.get(java.util.Calendar.HOUR_OF_DAY) < SUMMARY_HOUR) return
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(now.time)
+        if (settings.lastSummaryDay == today || !notificationsGranted(context)) return
+        val data = RateSnapshot.load(context, settings.side, ChartWindow.DAY)
+        val price = data.price ?: return
+        val prices = data.series.map { it.price }
+        if (prices.isEmpty()) return
+        val notification = NotificationCompat.Builder(context, SUMMARY_CHANNEL)
+            .setSmallIcon(R.drawable.ic_stat_rate)
+            .setContentTitle("USDT/LKR sell rate: Rs ${Formatting.price(price)}${data.trend?.let { " · ${it.arrow()}" }.orEmpty()}")
+            .setContentText("Last 24h: low ${Formatting.price(prices.min())} · high ${Formatting.price(prices.max())} · average ${Formatting.price(prices.average())}")
+            .setStyle(
+                NotificationCompat.BigTextStyle().bigText(
+                    listOfNotNull(
+                        "Last 24 hours: low ${Formatting.price(prices.min())}, high ${Formatting.price(prices.max())}, " +
+                            "average ${Formatting.price(prices.average())}.",
+                        data.trend?.let { "Change: ${Formatting.signedDelta(it.delta)} LKR (${Formatting.percent(it.percent)})." },
+                        data.premiumPercent?.let { "${Formatting.percent(it)} vs the official USD/LKR rate." },
+                    ).joinToString("\n")
+                )
+            )
+            .setContentIntent(openApp(context))
+            .setAutoCancel(true)
+            .build()
+        NotificationManagerCompat.from(context).notify(SUMMARY_ID, notification)
+        settings.lastSummaryDay = today
     }
 
     fun cancelStatus(context: Context) = NotificationManagerCompat.from(context).cancel(STATUS_ID)

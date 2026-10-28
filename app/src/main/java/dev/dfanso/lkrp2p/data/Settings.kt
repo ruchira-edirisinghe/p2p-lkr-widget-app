@@ -70,6 +70,16 @@ class Settings(private val prefs: SharedPreferences) {
         get() = prefs.getBoolean("statusNotification", false)
         set(value) = prefs.edit { putBoolean("statusNotification", value) }
 
+    /** Send one summary of the last 24 hours each morning. */
+    var dailySummary: Boolean
+        get() = prefs.getBoolean("dailySummary", false)
+        set(value) = prefs.edit { putBoolean("dailySummary", value) }
+
+    /** The local date ("2026-10-28") the last daily summary went out. */
+    var lastSummaryDay: String?
+        get() = prefs.getString("lastSummaryDay", null)
+        set(value) = prefs.edit { putString("lastSummaryDay", value) }
+
     /** The app's colours, and the default for widgets that follow the app. */
     var appTheme: ColorTheme
         get() = ColorTheme.fromKey(prefs.getString("appTheme", null)) ?: ColorTheme.DEFAULT

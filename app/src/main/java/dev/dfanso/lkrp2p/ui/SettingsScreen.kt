@@ -53,6 +53,7 @@ import dev.dfanso.lkrp2p.core.Formatting
 import dev.dfanso.lkrp2p.core.PaymentMethod
 import dev.dfanso.lkrp2p.data.Settings
 import dev.dfanso.lkrp2p.widget.RateWidgetReceiver
+import dev.dfanso.lkrp2p.work.RateNotifier
 
 private enum class Dialog { ORDER_SIZE, FINISH_RATE, MONTH_ORDERS, FREQUENCY, OPACITY }
 
@@ -183,6 +184,11 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
                     "A quiet notification with the current sell rate, updated after every check.",
                     state.statusNotification,
                 ) { on -> withPermission(on, vm::setStatusNotification) }
+                ToggleRow(
+                    "Daily summary",
+                    "Each morning after ${RateNotifier.SUMMARY_HOUR}:00, the last 24 hours' low, high and average.",
+                    state.dailySummary,
+                ) { on -> withPermission(on, vm::setDailySummary) }
             }
         }
 

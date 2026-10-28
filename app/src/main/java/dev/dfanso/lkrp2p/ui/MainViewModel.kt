@@ -53,6 +53,7 @@ data class UiState(
     val pollMinutes: Int,
     val widgetOpacity: Int = 100,
     val statusNotification: Boolean = false,
+    val dailySummary: Boolean = false,
     val sellerFilter: SellerFilter = SellerFilter(),
     val rate: RateSnapshot? = null,
     /** The newest sell-rate sample. */
@@ -81,6 +82,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             widgetOpacity = settings.widgetOpacity,
             sellerFilter = settings.sellerFilter,
             statusNotification = settings.statusNotification,
+            dailySummary = settings.dailySummary,
         )
     )
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -246,6 +248,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(statusNotification = on) }
         val context = getApplication<Application>()
         viewModelScope.launch(Dispatchers.IO) { RateNotifier.afterPoll(context) }
+    }
+
+    fun setDailySummary(on: Boolean) {
+        settings.dailySummary = on
+        _state.update { it.copy(dailySummary = on) }
     }
 
     fun setPollMinutes(minutes: Int) {
