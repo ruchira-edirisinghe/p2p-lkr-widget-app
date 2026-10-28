@@ -201,8 +201,10 @@ private fun NewAlertSheet(
     val current = state.latest?.fillablePrice
     var text by rememberSaveable { mutableStateOf("") }
     // Start from the live rate, nudged in the chosen direction, so the common
-    // case is one tap.
-    LaunchedEffect(direction, current) {
+    // case is one tap. Keyed on whether a rate exists, not its value: a
+    // refresh while the sheet is open must not overwrite what was typed.
+    val hasRate = current != null
+    LaunchedEffect(direction, hasRate) {
         if (current != null) {
             val target = if (direction == ThresholdDirection.ABOVE) kotlin.math.ceil(current + 0.5) else kotlin.math.floor(current - 0.5)
             text = "%.2f".format(java.util.Locale.US, target)
