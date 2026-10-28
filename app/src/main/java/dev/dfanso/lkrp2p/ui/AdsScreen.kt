@@ -48,7 +48,11 @@ fun AdsScreen(state: UiState, vm: MainViewModel) {
     // Which amount to judge ads against; starts at the order size used for the rate.
     var amount by rememberSaveable(state.orderSize) { mutableStateOf(state.orderSize) }
     var showUnfillable by rememberSaveable { mutableStateOf(false) }
-    val ads = state.book?.ads.orEmpty()
+    var showFiltered by rememberSaveable { mutableStateOf(false) }
+    val book = state.book?.ads.orEmpty()
+    // Sellers below the user's bar are folded away, not counted.
+    val ads = state.sellerFilter.apply(book)
+    val filtered = book.filterNot { it in ads }
     val fillable = ads.filter { it.canFill(amount) }
     val unfillable = ads.filterNot { it.canFill(amount) }
     val best = MetricsEngine.fillable(ads, amount)
@@ -124,6 +128,21 @@ fun AdsScreen(state: UiState, vm: MainViewModel) {
                 }
                 if (showUnfillable) items(unfillable) { ad -> AdCard(ad, isBest = false, fits = false, amount = amount) }
             }
+
+            if (filtered.isNotEmpty()) {
+                item {
+                    Text(
+                        (if (showFiltered) "Hide " else "Show ") +
+                            "${filtered.size} ads below your seller filter",
+                        color = Ui.Up, fontSize = 14.sp, fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showFiltered = !showFiltered }
+                            .padding(vertical = 12.dp),
+                    )
+                }
+                if (showFiltered) items(filtered) { ad -> AdCard(ad, isBest = false, fits = false, amount = amount, filteredOut = true) }
+            }
         }
     }
 }
@@ -131,7 +150,7 @@ fun AdsScreen(state: UiState, vm: MainViewModel) {
 private fun book(state: UiState): String? = state.book?.let { Formatting.relativeAge(it.capturedAtSec) }
 
 @Composable
-private fun AdCard(ad: Ad, isBest: Boolean, fits: Boolean, amount: Int) {
+private fun AdCard(ad: Ad, isBest: Boolean, fits: Boolean, amount: Int, filteredOut: Boolean = false) {
     val shape = RoundedCornerShape(18.dp)
     Column(
         Modifier
@@ -177,6 +196,7 @@ private fun AdCard(ad: Ad, isBest: Boolean, fits: Boolean, amount: Int) {
             val fiat = amount * ad.price
             Text(
                 when {
+                    filteredOut -> "Below your seller filter (Settings)"
                     ad.availableUsdt < amount -> "Only ${Formatting.usdt(ad.availableUsdt)} left"
                     fiat < ad.minFiat -> "Minimum order is Rs ${Formatting.whole(ad.minFiat)}"
                     else -> "Maximum order is Rs ${Formatting.whole(ad.maxFiat)}"

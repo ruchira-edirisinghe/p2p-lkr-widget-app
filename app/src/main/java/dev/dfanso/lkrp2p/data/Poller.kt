@@ -64,8 +64,11 @@ class Poller(
             return PollOutcome.Failed(side, P2PError.Transport(e.message ?: e.javaClass.simpleName))
         }
 
-        val sample = MetricsEngine.makeSample(ads, side, amount, nowSec)
-            ?: return PollOutcome.Failed(side, P2PError.EmptyResult)
+        // The rate only counts sellers who pass the filter; the stored book
+        // keeps everyone so the Ads tab can show who was left out.
+        val usable = settings.sellerFilter.apply(ads)
+        val sample = MetricsEngine.makeSample(usable, side, amount, nowSec)
+            ?: return PollOutcome.Failed(side, if (ads.isEmpty()) P2PError.EmptyResult else P2PError.FilteredOut)
 
         // A failed poll writes nothing at all: a gap in the chart is honest, a
         // fabricated price is not.

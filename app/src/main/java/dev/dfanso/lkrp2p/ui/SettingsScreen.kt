@@ -50,7 +50,7 @@ import dev.dfanso.lkrp2p.core.PaymentMethod
 import dev.dfanso.lkrp2p.data.Settings
 import dev.dfanso.lkrp2p.widget.RateWidgetReceiver
 
-private enum class Dialog { ORDER_SIZE, FREQUENCY, OPACITY }
+private enum class Dialog { ORDER_SIZE, FINISH_RATE, MONTH_ORDERS, FREQUENCY, OPACITY }
 
 @Composable
 fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
@@ -114,6 +114,16 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
                     Formatting.usdt(state.orderSize.toDouble()),
                     "Only ads that accept an order this big count towards the rate. Most ads have a minimum.",
                 ) { dialog = Dialog.ORDER_SIZE }
+                SettingRow(
+                    "Minimum completion rate",
+                    finishLabel(state.sellerFilter.minFinishPercent),
+                    "Ignore sellers who complete fewer of their orders than this.",
+                ) { dialog = Dialog.FINISH_RATE }
+                SettingRow(
+                    "Minimum orders this month",
+                    ordersLabel(state.sellerFilter.minMonthOrders),
+                    "Ignore sellers with less of a track record than this.",
+                ) { dialog = Dialog.MONTH_ORDERS }
             }
             Text(
                 "Only sell offers from sellers who pay by ${PaymentMethod.BANK_SRI_LANKA.displayName} are tracked.",
@@ -191,6 +201,18 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
         Dialog.ORDER_SIZE -> OrderSizeDialog(state.orderSize, onDismiss = { dialog = null }) {
             vm.setOrderSize(it); dialog = null
         }
+        Dialog.FINISH_RATE -> ChoiceDialog(
+            "Minimum completion rate", Settings.Defaults.FINISH_RATE_CHOICES, state.sellerFilter.minFinishPercent,
+            ::finishLabel, { dialog = null },
+        ) {
+            vm.setSellerFilter(state.sellerFilter.copy(minFinishPercent = it)); dialog = null
+        }
+        Dialog.MONTH_ORDERS -> ChoiceDialog(
+            "Minimum orders this month", Settings.Defaults.MONTH_ORDER_CHOICES, state.sellerFilter.minMonthOrders,
+            ::ordersLabel, { dialog = null },
+        ) {
+            vm.setSellerFilter(state.sellerFilter.copy(minMonthOrders = it)); dialog = null
+        }
         Dialog.FREQUENCY -> ChoiceDialog("Check for a new rate", Settings.Defaults.POLL_CHOICES, state.pollMinutes, { "Every $it minutes" }, { dialog = null }) {
             vm.setPollMinutes(it); dialog = null
         }
@@ -203,6 +225,10 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
         null -> Unit
     }
 }
+
+private fun finishLabel(percent: Int) = if (percent == 0) "Any" else "$percent%+"
+
+private fun ordersLabel(orders: Int) = if (orders == 0) "Any" else "${Formatting.whole(orders)}+"
 
 const val SOURCE_URL = "https://github.com/ruchira-edirisinghe/p2p-lkr-widget-app"
 

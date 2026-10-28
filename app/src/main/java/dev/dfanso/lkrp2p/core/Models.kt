@@ -94,5 +94,9 @@ sealed class P2PError(message: String) : Exception(message) {
     object EmptyResult : P2PError("No ads returned") {
         private fun readResolve(): Any = EmptyResult
     }
+    /** Ads came back, but none passed the user's [SellerFilter]. */
+    object FilteredOut : P2PError("No ads pass the seller filter") {
+        private fun readResolve(): Any = FilteredOut
+    }
     class Malformed(detail: String) : P2PError("Malformed response: $detail")
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import dev.dfanso.lkrp2p.core.PaymentMethod
+import dev.dfanso.lkrp2p.core.SellerFilter
 import dev.dfanso.lkrp2p.core.Side
 import dev.dfanso.lkrp2p.render.ColorTheme
 
@@ -28,6 +29,8 @@ class Settings(private val prefs: SharedPreferences) {
         val POLL_CHOICES = listOf(15, 30, 60)
         val OPACITY_CHOICES = listOf(100, 85, 70, 50, 30, 0)
         val ORDER_SIZE_CHOICES = listOf(100, 500, 1_000, 5_000)
+        val FINISH_RATE_CHOICES = listOf(0, 90, 95, 98)
+        val MONTH_ORDER_CHOICES = listOf(0, 50, 100, 500)
         const val RETENTION_DAYS = 30
 
         /** Three missed polls, and never under 15 minutes, before data reads as stale. */
@@ -45,6 +48,17 @@ class Settings(private val prefs: SharedPreferences) {
     val payment: PaymentMethod get() = Defaults.PAYMENT
 
     val fiat: String get() = Defaults.FIAT
+
+    /** Sellers below this bar don't count towards the rate. Off by default. */
+    var sellerFilter: SellerFilter
+        get() = SellerFilter(
+            prefs.getInt("minFinishPercent", 0).takeIf { it in Defaults.FINISH_RATE_CHOICES } ?: 0,
+            prefs.getInt("minMonthOrders", 0).takeIf { it in Defaults.MONTH_ORDER_CHOICES } ?: 0,
+        )
+        set(value) = prefs.edit {
+            putInt("minFinishPercent", value.minFinishPercent)
+            putInt("minMonthOrders", value.minMonthOrders)
+        }
 
     var pollMinutes: Int
         get() = prefs.getInt("pollMinutes", Defaults.POLL_MINUTES)

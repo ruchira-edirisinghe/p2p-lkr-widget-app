@@ -10,6 +10,7 @@ import dev.dfanso.lkrp2p.core.BinanceP2PClient
 import dev.dfanso.lkrp2p.core.ChartWindow
 import dev.dfanso.lkrp2p.core.Converter
 import dev.dfanso.lkrp2p.core.P2PError
+import dev.dfanso.lkrp2p.core.SellerFilter
 import dev.dfanso.lkrp2p.core.Sample
 import dev.dfanso.lkrp2p.core.ThresholdDirection
 import dev.dfanso.lkrp2p.data.PollOutcome
@@ -43,6 +44,7 @@ data class UiState(
     val orderSize: Int,
     val pollMinutes: Int,
     val widgetOpacity: Int = 100,
+    val sellerFilter: SellerFilter = SellerFilter(),
     val rate: RateSnapshot? = null,
     /** The newest sell-rate sample. */
     val latest: Sample? = null,
@@ -54,7 +56,7 @@ data class UiState(
     val hasWidget: Boolean = true,
 ) {
     val quote: Converter.Quote?
-        get() = converter.amount?.let { Converter.quote(book?.ads.orEmpty(), rate?.price, it, converter.isUsdt) }
+        get() = converter.amount?.let { Converter.quote(sellerFilter.apply(book?.ads.orEmpty()), rate?.price, it, converter.isUsdt) }
 }
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
@@ -67,6 +69,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             orderSize = settings.amountUsdt,
             pollMinutes = settings.pollMinutes,
             widgetOpacity = settings.widgetOpacity,
+            sellerFilter = settings.sellerFilter,
         )
     )
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -125,6 +128,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         is P2PError.Transport -> "Couldn't reach Binance. Check your internet connection."
         is P2PError.HttpStatus -> "Binance didn't answer (error ${error.code}). Try again in a minute."
         is P2PError.EmptyResult -> "Binance returned no Sri Lanka bank transfer ads right now."
+        is P2PError.FilteredOut -> "No seller passes your seller filter right now. You can loosen it in Settings."
         else -> "Binance sent something unexpected. Try again in a minute."
     }
 
@@ -200,6 +204,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         settings.amountUsdt = amount
         _state.update { it.copy(orderSize = amount) }
         // A new order size is a new series: collect its first point straight away.
+        refresh()
+    }
+
+    fun setSellerFilter(filter: SellerFilter) {
+        settings.sellerFilter = filter
+        _state.update { it.copy(sellerFilter = settings.sellerFilter) }
+        // The stored rate was picked under the old filter; fetch one under the new.
         refresh()
     }
 
