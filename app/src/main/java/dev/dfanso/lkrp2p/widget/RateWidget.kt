@@ -453,7 +453,7 @@ private fun SideRow(data: RateSnapshot, m: Metrics, height: Float) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            "Sell rate · Sri Lanka bank transfer",
+            data.premiumPercent?.let { "Sell · ${Formatting.percent(it)} vs official" } ?: "Sell rate · Sri Lanka bank transfer",
             style = TextStyle(color = Dim, fontSize = m.text(12.5f)),
             maxLines = 1,
             modifier = GlanceModifier.defaultWeight(),

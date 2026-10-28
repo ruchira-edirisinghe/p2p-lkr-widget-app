@@ -339,10 +339,24 @@ private fun pointTime(point: SeriesPoint, window: ChartWindow): String {
 @Composable
 private fun StatsPanel(state: UiState) {
     val sample = state.latest
+    val premium = state.rate?.premiumPercent
     Panel {
         Row {
+            Stat(
+                "Vs official rate",
+                premium?.let(Formatting::percent) ?: "—",
+                Modifier.weight(1f),
+                valueColor = if ((premium ?: 0.0) >= 0) Ui.Up else Ui.Down,
+            )
             Stat("Top ad", Formatting.price(sample?.topPrice), Modifier.weight(1f))
             Stat("Median of top 10", Formatting.price(sample?.medianTop10), Modifier.weight(1f))
+        }
+        state.rate?.officialRate?.let {
+            Text(
+                "Official USD/LKR reference rate: ${Formatting.price(it)} (daily mid-market). " +
+                    "The P2P rate is what a seller actually pays you for 1 USDT.",
+                color = Ui.Dim, fontSize = 12.sp,
+            )
         }
         Text(
             "The rate uses the best ad that accepts ${Formatting.usdt(state.orderSize.toDouble())} orders. " +

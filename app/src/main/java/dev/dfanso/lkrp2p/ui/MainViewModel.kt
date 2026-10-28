@@ -13,6 +13,7 @@ import dev.dfanso.lkrp2p.core.P2PError
 import dev.dfanso.lkrp2p.core.SellerFilter
 import dev.dfanso.lkrp2p.core.Sample
 import dev.dfanso.lkrp2p.core.ThresholdDirection
+import dev.dfanso.lkrp2p.data.FxRepository
 import dev.dfanso.lkrp2p.data.PollOutcome
 import dev.dfanso.lkrp2p.data.Poller
 import dev.dfanso.lkrp2p.data.RateSnapshot
@@ -108,7 +109,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 val outcomes = withContext(Dispatchers.IO) {
                     Poller(BinanceP2PClient(), store, settings, { rule, price ->
                         AlertNotifier.present(context, rule, price)
-                    }).pollOnce()
+                    }).pollOnce().also {
+                        // The official rate behind "Vs official"; a no-op unless a few hours old.
+                        FxRepository.get(context).refreshIfDue()
+                    }
                 }
                 error = outcomes.filterIsInstance<PollOutcome.Failed>().firstOrNull()?.error?.let(::describe)
                 RateWidget.refreshAll(context)

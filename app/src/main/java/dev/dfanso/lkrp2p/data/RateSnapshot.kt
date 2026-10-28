@@ -19,9 +19,19 @@ data class RateSnapshot(
     val nowSec: Long,
     val gapSec: Long,
     val staleAfterSec: Long,
+    /** The daily USD/LKR reference rate, from the Currencies tab's source. */
+    val officialRate: Double? = null,
 ) {
     /** LKR per 1 USDT, from the best ad that accepts an order of [amountUsdt]. */
     val price: Double? get() = sample?.fillablePrice
+
+    /** How far the P2P rate sits above (or below) the official rate, in percent. */
+    val premiumPercent: Double?
+        get() {
+            val p2p = price ?: return null
+            val official = officialRate?.takeIf { it > 0 } ?: return null
+            return (p2p - official) / official * 100
+        }
     val isStale: Boolean
         get() = sample == null || nowSec - sample.timestampSec > staleAfterSec
 
@@ -43,6 +53,8 @@ data class RateSnapshot(
                 // Four missed polls (at least 30 min, or 2.5 buckets) before the line breaks.
                 gapSec = maxOf(settings.pollMinutes * 60L * 4, 30 * 60L, window.bucketSec * 5 / 2),
                 staleAfterSec = Settings.Defaults.staleAfterSec(settings.pollMinutes),
+                // 1 USDT tracks 1 USD, so USD/LKR is the official yardstick.
+                officialRate = runCatching { FxRepository.get(context).quote("usd", "lkr", FxRange.WEEK).rate }.getOrNull(),
             )
         }
     }
