@@ -28,9 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import dev.dfanso.lkrp2p.data.Store
 import dev.dfanso.lkrp2p.widget.Widgets
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -182,12 +180,7 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
                 val scope = rememberCoroutineScope()
                 SettingRow("Export P2P history", "CSV", "Every saved sample from the last 30 days, to share or open in a spreadsheet.") {
                     scope.launch {
-                        val csv = withContext(Dispatchers.IO) { Store.get(context).exportCsv() }
-                        val send = Intent(Intent.ACTION_SEND)
-                            .setType("text/csv")
-                            .putExtra(Intent.EXTRA_SUBJECT, "USDT/LKR P2P history")
-                            .putExtra(Intent.EXTRA_TEXT, csv)
-                        context.startActivity(Intent.createChooser(send, "Export history"))
+                        shareCsv(context, "usdt-lkr-p2p-history.csv", "USDT/LKR P2P history") { Store.get(context).exportCsv() }
                     }
                 }
             }

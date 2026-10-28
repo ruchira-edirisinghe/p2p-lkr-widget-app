@@ -60,6 +60,17 @@
             </intent-filter>
         </activity>
 
+        <!-- Hands CSV exports to the share sheet as files. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!-- Background polls that still fire in Doze; see CollectAlarm. -->
         <receiver
             android:name=".work.CollectAlarm"

@@ -2,7 +2,6 @@ package dev.dfanso.lkrp2p.ui
 
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
-import android.content.Intent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -256,11 +255,7 @@ private fun FxActions(state: FxUiState, vm: FxViewModel) {
         OutlinedButton(
             onClick = {
                 scope.launch {
-                    val send = Intent(Intent.ACTION_SEND)
-                        .setType("text/csv")
-                        .putExtra(Intent.EXTRA_SUBJECT, "${state.from.uppercase()}/${state.to.uppercase()} rates")
-                        .putExtra(Intent.EXTRA_TEXT, vm.csv())
-                    context.startActivity(Intent.createChooser(send, "Export rates"))
+                    shareCsv(context, "${state.from}-${state.to}-rates.csv", "${state.from.uppercase()}/${state.to.uppercase()} rates") { vm.csv() }
                 }
             },
         ) { Text("Export CSV") }
