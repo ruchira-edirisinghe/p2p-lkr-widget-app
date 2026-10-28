@@ -43,6 +43,10 @@ class CollectAlarm : BroadcastReceiver() {
                     ).pollOnce(minSpacingSec = 60)
                 }
                 refreshEverything(app)
+            } catch (e: Exception) {
+                // Nothing above this scope handles errors: an escaped exception
+                // would kill the process. The next alarm simply tries again.
+                android.util.Log.w("CollectAlarm", "poll failed", e)
             } finally {
                 pending.finish()
             }
