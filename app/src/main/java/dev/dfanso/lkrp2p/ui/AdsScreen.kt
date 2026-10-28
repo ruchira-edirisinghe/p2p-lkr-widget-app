@@ -94,7 +94,7 @@ fun AdsScreen(state: UiState, vm: MainViewModel) {
                     OutlinedButton(
                         onClick = {
                             val url = "https://p2p.binance.com/trade/sell/USDT?fiat=LKR&payment=${PaymentMethod.BANK_SRI_LANKA.wire}"
-                            context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+                            context.startSafely(Intent(Intent.ACTION_VIEW, url.toUri()))
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {

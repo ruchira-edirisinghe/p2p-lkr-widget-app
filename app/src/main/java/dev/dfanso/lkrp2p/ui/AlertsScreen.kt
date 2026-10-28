@@ -94,7 +94,7 @@ fun AlertsScreen(state: UiState, vm: MainViewModel) {
                         Text("Your alerts can't reach you until you allow notifications.", color = Ui.Dim, fontSize = 14.sp)
                         TextButton(onClick = {
                             if (Build.VERSION.SDK_INT >= 33) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                            else context.startActivity(
+                            else context.startSafely(
                                 Intent(AndroidSettings.ACTION_APP_NOTIFICATION_SETTINGS)
                                     .putExtra(AndroidSettings.EXTRA_APP_PACKAGE, context.packageName),
                             )

@@ -27,3 +27,15 @@ internal suspend fun shareCsv(context: Context, fileName: String, subject: Strin
     send.clipData = ClipData.newRawUri(fileName, uri)
     context.startActivity(Intent.createChooser(send, subject))
 }
+
+/**
+ * Opens [intent], or explains why not. A phone with no browser enabled, or an
+ * OEM build missing a settings page, throws ActivityNotFoundException.
+ */
+internal fun Context.startSafely(intent: Intent) {
+    try {
+        startActivity(intent)
+    } catch (e: android.content.ActivityNotFoundException) {
+        android.widget.Toast.makeText(this, "No app on this phone can open that.", android.widget.Toast.LENGTH_SHORT).show()
+    }
+}

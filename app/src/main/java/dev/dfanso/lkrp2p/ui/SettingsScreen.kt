@@ -139,7 +139,7 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
                     else "The phone may pause updates for hours while it sleeps, leaving gaps in the chart. " +
                         "Tap, then set Battery to Unrestricted.",
                 ) {
-                    context.startActivity(
+                    context.startSafely(
                         Intent(SystemSettings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri())
                     )
                 }
@@ -175,7 +175,7 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
             }
             Panel(padding = 8.dp) {
                 SettingRow("Open source", "GitHub", "Free and open source under the MIT License. Read the code, report a bug or contribute.") {
-                    context.startActivity(Intent(Intent.ACTION_VIEW, SOURCE_URL.toUri()))
+                    context.startSafely(Intent(Intent.ACTION_VIEW, SOURCE_URL.toUri()))
                 }
                 val scope = rememberCoroutineScope()
                 SettingRow("Export P2P history", "CSV", "Every saved sample from the last 30 days, to share or open in a spreadsheet.") {
