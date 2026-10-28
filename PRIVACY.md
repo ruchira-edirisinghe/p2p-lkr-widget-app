@@ -1,8 +1,8 @@
-# Privacy Policy — LKR P2P Rate
+# Privacy Policy — RupeeRadar
 
 Last updated: 2026-10-08
 
-LKR P2P Rate shows the USDT/LKR rate from the public Binance P2P order book.
+RupeeRadar (formerly LKR P2P Rate) shows the USDT/LKR rate from the public Binance P2P order book.
 
 **What the app collects about you: nothing.** It has no accounts, no analytics,
 no advertising, no crash reporting and no tracking of any kind.

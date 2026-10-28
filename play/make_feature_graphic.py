@@ -34,9 +34,9 @@ for y in range(H):
         px[x, y] = (19, int(19 + 109 * a), int(19 + 55 * a))
 
 draw = ImageDraw.Draw(img)
-draw.text((64, 92), "LKR P2P Rate", font=font(76, bold=True), fill="white")
-draw.text((68, 190), "Live USDT/LKR P2P rate on your home screen", font=font(30), fill=(220, 220, 220))
-draw.text((68, 236), "Fillable price · trend chart · rate alerts", font=font(26), fill=(160, 160, 160))
+draw.text((64, 92), "RupeeRadar", font=font(76, bold=True), fill="white")
+draw.text((68, 190), "The USDT/LKR P2P sell rate on your home screen", font=font(30), fill=(220, 220, 220))
+draw.text((68, 236), "Sri Lanka bank transfer sellers · trend chart · alerts", font=font(26), fill=(160, 160, 160))
 
 # A rising line with a soft glow, along the bottom.
 points = [(60, 430), (170, 400), (280, 418), (390, 370), (500, 382), (610, 340),

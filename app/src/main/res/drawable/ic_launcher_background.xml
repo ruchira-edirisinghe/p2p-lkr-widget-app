@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Same emerald ground as the macOS app icon (tools/make-icon.swift). -->
+<!-- RupeeRadar ground: a diagonal emerald gradient. play/make_icon.py draws the same. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp" android:height="108dp"
@@ -7,8 +7,8 @@
     <path android:pathData="M0,0h108v108h-108z">
         <aapt:attr name="android:fillColor">
             <gradient android:type="linear"
-                android:startX="54" android:startY="0" android:endX="54" android:endY="108"
-                android:startColor="#FF13B680" android:endColor="#FF0A5A3D" />
+                android:startX="0" android:startY="0" android:endX="108" android:endY="108"
+                android:startColor="#FF14C88E" android:endColor="#FF064A36" />
         </aapt:attr>
     </path>
 </vector>

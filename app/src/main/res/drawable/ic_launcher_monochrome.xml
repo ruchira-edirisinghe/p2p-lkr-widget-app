@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon (Android 13+) version of the RupeeRadar mark: one colour, no sweep. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M54,24a30,30 0,1 1,0 60a30,30 0,1 1,0 -60z"
+        android:strokeColor="#FFFFFFFF" android:strokeAlpha="0.45" android:strokeWidth="2.2" android:fillColor="#00000000" />
+    <path android:pathData="M54,34a20,20 0,1 1,0 40a20,20 0,1 1,0 -40z"
+        android:strokeColor="#FFFFFFFF" android:strokeAlpha="0.45" android:strokeWidth="2.2" android:fillColor="#00000000" />
+    <path android:pathData="M28,70L42,60L53,65L76,40"
+        android:strokeColor="#FFFFFFFF" android:strokeWidth="5.5"
+        android:strokeLineCap="round" android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+    <path android:pathData="M76,35.5a4.5,4.5 0,1 1,0 9a4.5,4.5 0,1 1,0 -9z" android:fillColor="#FFFFFFFF" />
+</vector>
