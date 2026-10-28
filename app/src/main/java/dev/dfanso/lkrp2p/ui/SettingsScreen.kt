@@ -1,10 +1,14 @@
 package dev.dfanso.lkrp2p.ui
 
+import android.Manifest
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.PowerManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.provider.Settings as SystemSettings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -153,6 +157,32 @@ fun SettingsScreen(state: UiState, vm: MainViewModel, onBack: () -> Unit) {
                         Intent(SystemSettings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri())
                     )
                 }
+            }
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            SectionLabel("Notifications", Modifier.padding(start = 4.dp))
+            // On Android 13+ a switch that posts notifications must ask first;
+            // the request's answer then decides whether it stays on.
+            var pendingToggle by remember { mutableStateOf<((Boolean) -> Unit)?>(null) }
+            val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+                pendingToggle?.invoke(granted)
+                pendingToggle = null
+            }
+            fun withPermission(on: Boolean, apply: (Boolean) -> Unit) {
+                if (on && Build.VERSION.SDK_INT >= 33 && !notificationsGranted(context)) {
+                    pendingToggle = apply
+                    permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    apply(on)
+                }
+            }
+            Panel(padding = 8.dp) {
+                ToggleRow(
+                    "Rate in notification bar",
+                    "A quiet notification with the current sell rate, updated after every check.",
+                    state.statusNotification,
+                ) { on -> withPermission(on, vm::setStatusNotification) }
             }
         }
 

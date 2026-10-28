@@ -239,3 +239,23 @@ fun SettingRow(title: String, value: String, help: String? = null, onClick: () -
         Text(value, color = Ui.Up, fontSize = 15.sp, fontWeight = FontWeight.Medium)
     }
 }
+
+/** A settings row with an on/off switch; tapping anywhere on it flips the switch. */
+@Composable
+fun ToggleRow(title: String, help: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onChange(!checked) }
+            .padding(vertical = 10.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, color = Ui.Text, fontSize = 16.sp)
+            help?.let { Text(it, color = Ui.Dim, fontSize = 13.sp) }
+        }
+        Spacer(Modifier.width(12.dp))
+        androidx.compose.material3.Switch(checked = checked, onCheckedChange = onChange)
+    }
+}

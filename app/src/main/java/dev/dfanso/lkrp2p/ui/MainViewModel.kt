@@ -27,6 +27,7 @@ import dev.dfanso.lkrp2p.widget.RateWidget
 import dev.dfanso.lkrp2p.widget.Widgets
 import dev.dfanso.lkrp2p.work.AlertNotifier
 import dev.dfanso.lkrp2p.work.CollectWorker
+import dev.dfanso.lkrp2p.work.RateNotifier
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -51,6 +52,7 @@ data class UiState(
     val orderSize: Int,
     val pollMinutes: Int,
     val widgetOpacity: Int = 100,
+    val statusNotification: Boolean = false,
     val sellerFilter: SellerFilter = SellerFilter(),
     val rate: RateSnapshot? = null,
     /** The newest sell-rate sample. */
@@ -78,6 +80,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             pollMinutes = settings.pollMinutes,
             widgetOpacity = settings.widgetOpacity,
             sellerFilter = settings.sellerFilter,
+            statusNotification = settings.statusNotification,
         )
     )
     val state: StateFlow<UiState> = _state.asStateFlow()
@@ -121,6 +124,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 error = outcomes.filterIsInstance<PollOutcome.Failed>().firstOrNull()?.error?.let(::describe)
                 RateWidget.refreshAll(context)
+                withContext(Dispatchers.IO) { RateNotifier.afterPoll(context) }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 error = error ?: "Something went wrong while refreshing. Try again in a minute."
@@ -235,6 +239,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { it.copy(sellerFilter = settings.sellerFilter) }
         // The stored rate was picked under the old filter; fetch one under the new.
         refresh()
+    }
+
+    fun setStatusNotification(on: Boolean) {
+        settings.statusNotification = on
+        _state.update { it.copy(statusNotification = on) }
+        val context = getApplication<Application>()
+        viewModelScope.launch(Dispatchers.IO) { RateNotifier.afterPoll(context) }
     }
 
     fun setPollMinutes(minutes: Int) {

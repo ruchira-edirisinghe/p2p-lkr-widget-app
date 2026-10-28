@@ -82,9 +82,11 @@ class CollectWorker(context: Context, params: WorkerParameters) : CoroutineWorke
 
 /**
  * After a P2P poll: top up the daily reference rates when they are a few hours
- * old (they change once a day), then repaint every widget of both kinds.
+ * old (they change once a day), repaint every widget of both kinds and update
+ * the rate notifications.
  */
 internal suspend fun refreshEverything(context: Context) {
     FxRepository.get(context).refreshIfDue()
     Widgets.refreshAll(context)
+    RateNotifier.afterPoll(context)
 }

@@ -65,6 +65,11 @@ class Settings(private val prefs: SharedPreferences) {
             .takeIf { it in Defaults.POLL_CHOICES } ?: Defaults.POLL_MINUTES
         set(value) { if (value in Defaults.POLL_CHOICES) prefs.edit { putInt("pollMinutes", value) } }
 
+    /** Keep the current rate in the notification bar. */
+    var statusNotification: Boolean
+        get() = prefs.getBoolean("statusNotification", false)
+        set(value) = prefs.edit { putBoolean("statusNotification", value) }
+
     /** The app's colours, and the default for widgets that follow the app. */
     var appTheme: ColorTheme
         get() = ColorTheme.fromKey(prefs.getString("appTheme", null)) ?: ColorTheme.DEFAULT
