@@ -51,6 +51,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import dev.dfanso.lkrp2p.R
 import dev.dfanso.lkrp2p.core.AlertState
 import dev.dfanso.lkrp2p.core.Formatting
@@ -66,6 +68,8 @@ fun AlertsScreen(state: UiState, vm: MainViewModel) {
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         notificationsAllowed = it
     }
+    // Re-check on return from the system's notification settings.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { notificationsAllowed = notificationsGranted(context) }
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
@@ -127,9 +131,11 @@ fun AlertsScreen(state: UiState, vm: MainViewModel) {
     }
 }
 
-private fun notificationsGranted(context: android.content.Context) =
-    Build.VERSION.SDK_INT < 33 ||
-        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+internal fun notificationsGranted(context: android.content.Context) =
+    androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled() && (
+        Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        )
 
 @Composable
 private fun EmptyAlerts(state: UiState) {
