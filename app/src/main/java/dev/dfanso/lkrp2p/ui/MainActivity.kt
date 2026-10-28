@@ -61,7 +61,9 @@ class MainActivity : ComponentActivity() {
         )
         super.onCreate(savedInstanceState)
         requestedTab.value = tabFrom(intent)
-        setContent { AppTheme { App(vm, fxVm, requestedTab) } }
+        // The launch animation plays on a cold start, not on rotation or return.
+        val splash = savedInstanceState == null
+        setContent { AppTheme { App(vm, fxVm, requestedTab, splash = splash) } }
 
         // Live while on screen: background polls can't run more often than
         // every 15 minutes, but the open app can. Stops when it goes away.
@@ -106,6 +108,22 @@ internal fun App(
     requested: MutableState<Tab?> = remember { mutableStateOf(null) },
     startTab: Tab = Tab.RATE,
     startInSettings: Boolean = false,
+    splash: Boolean = false,
+) {
+    var showSplash by rememberSaveable { mutableStateOf(splash) }
+    Box(Modifier.fillMaxSize()) {
+        AppContent(vm, fxVm, requested, startTab, startInSettings)
+        if (showSplash) SplashOverlay(onFinished = { showSplash = false })
+    }
+}
+
+@Composable
+private fun AppContent(
+    vm: MainViewModel,
+    fxVm: FxViewModel,
+    requested: MutableState<Tab?>,
+    startTab: Tab,
+    startInSettings: Boolean,
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val fxState by fxVm.state.collectAsStateWithLifecycle()

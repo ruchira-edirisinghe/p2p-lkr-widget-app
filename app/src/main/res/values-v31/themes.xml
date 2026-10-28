@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<resources>
+    <!-- Android 12+ shows its own splash before the app draws. Give it the app's
+         dark ground so it hands over to the launch animation without a flash. -->
+    <style name="Theme.LkrP2P" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/base</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowSplashScreenBackground">@color/base</item>
+    </style>
+</resources>
