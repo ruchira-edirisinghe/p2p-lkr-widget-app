@@ -1,11 +1,17 @@
-<h1 align="center">LKR P2P Rate</h1>
+<p align="center">
+  <img src="play/icon-512.png" width="112" alt="RupeeRadar icon">
+</p>
+
+<h1 align="center">RupeeRadar</h1>
 
 <p align="center">
-  <b>The USDT/LKR P2P rate, and any currency exchange rate, on your Android home screen.</b><br>
+  <b>The USDT/LKR P2P sell rate, and any currency exchange rate, on your Android home screen.</b><br>
   Resizable widgets and a companion app that read the public Binance P2P order book
-  and show the best rate you can <i>actually</i> get, with a trend chart, a converter,
-  the live list of ads and rate alerts, plus a second widget for ordinary exchange
-  rates on any currency pair, in nine colour themes.
+  and show the best price a <b>Sri Lanka bank transfer</b> seller will <i>actually</i> pay
+  for your USDT, with a trend chart, the premium over the official rate, a converter,
+  the live list of ads, your favourite sellers and rate alerts, plus a second widget
+  for ordinary exchange rates on any currency pair, in nine colour themes.<br>
+  <sub>Formerly <i>LKR P2P Rate</i>.</sub>
 </p>
 
 <p align="center">
@@ -25,13 +31,13 @@
 - [The widget](#the-widget)
   - [Anatomy](#anatomy-of-the-full-widget)
   - [Sizes and layouts](#sizes-and-layouts)
-  - [Day, Week, Month and Buy](#day-week-month-and-buy)
+  - [Day, Week and Month](#day-week-and-month)
   - [When the rate is out of date](#when-the-rate-is-out-of-date)
   - [Adding a widget](#adding-a-widget)
 - [Exchange Rate widget](#exchange-rate-widget)
 - [Colour themes](#colour-themes)
 - [The app](#the-app)
-  - [Rate](#rate-p2p-tab) · [Converter](#converter) · [Currencies](#currencies) · [Ads](#ads) · [Alerts](#alerts) · [Settings](#settings)
+  - [Launch screen](#launch-screen) · [Rate](#rate-p2p-tab) · [Converter](#converter) · [Currencies](#currencies) · [Ads](#ads) · [Alerts](#alerts) · [Notifications](#notifications) · [Settings](#settings)
 - [How the rate is worked out](#how-the-rate-is-worked-out)
 - [How often it updates](#how-often-it-updates)
 - [Privacy](#privacy)
@@ -45,12 +51,13 @@
 
 | | |
 |---|---|
-| **What it shows** | The price of **1 USDT in Sri Lankan rupees** on Binance P2P, for selling and for buying |
-| **Where the price comes from** | The best ad that will accept your usual order size (500 USDT by default), not the headline ad with a minimum you can't meet |
-| **Widgets** | **USDT/LKR Rate**: resizable from a 2x1 strip to a full 4x4 card, with its own Day/Week/Month chart and Sell/Buy switch. **Exchange Rate**: any currency pair (USD/LKR, EUR/USD, AED/LKR, BTC/LKR…) with a 1W/1M/3M/1Y chart |
+| **What it shows** | What **1 USDT sells for in Sri Lankan rupees** on Binance P2P, counting only sellers who pay by **Sri Lankan bank transfer** |
+| **Where the price comes from** | The best such ad that will accept your usual order size (500 USDT by default), not the headline ad with a minimum you can't meet. Optionally only from sellers with a good track record |
+| **Widgets** | **USDT/LKR Rate**: resizable from a 2x1 strip to a full 4x4 card, with its own Day/Week/Month chart and the premium over the official rate. **Exchange Rate**: any currency pair (USD/LKR, EUR/USD, AED/LKR, BTC/LKR…) with a 1W/1M/3M/1Y chart |
 | **Themes** | Nine colour themes for the app and the widgets, adjustable widget transparency, and a theme per widget |
-| **App** | P2P, Currencies, Ads and Alerts tabs plus Settings |
-| **Updates** | In the background every 15 minutes (30 or 60 if you prefer), with no notification; on demand when you open the app, pull down or tap ⟳ |
+| **App** | P2P, Currencies, Ads and Alerts tabs plus Settings, behind an animated launch screen |
+| **Alerts and notifications** | Price-target alerts, sharp-move alerts (e.g. ±1% in 6 hours), an optional rate in the notification bar and an optional daily summary |
+| **Updates** | **Every minute while the app is open.** In the background every 15 minutes (30 or 60 if you prefer), with no notification; on demand when you pull down or tap ⟳ |
 | **Data** | 30 days of P2P history and the downloaded exchange rates, kept on the phone only. Exportable as CSV |
 | **Requirements** | Android 8.0 (API 26) or newer, phones and tablets |
 
@@ -70,7 +77,7 @@
 | 2 | **Last updated · ⟳** | The time of the newest rate. Turns amber and says **Stale** when it is too old (see [below](#when-the-rate-is-out-of-date)) | ⟳ fetches a fresh rate straight away |
 | 3 | **₮ 1** | The amount being priced: always 1 USDT | Opens the app |
 | 4 | **USDT** | The coin, with the Tether badge | Opens the app |
-| 5 | **↓↑ Sell rate · tap to switch** | Which side this widget shows | Flips this widget between the **Sell** and **Buy** rate |
+| 5 | **Sell · +12.90% vs official** | How far the P2P sell rate sits above the official USD/LKR reference rate. Reads "Sell rate · Sri Lanka bank transfer" until the reference rate has downloaded | Opens the app |
 | 6 | **Trend chip** | Change from the first to the last point of the chart window. Green ▲ when the rate went up, red ▼ when it went down | Opens the app |
 | 7 | **Rs 331.00** | The rate: what 1 USDT is worth in rupees right now | Opens the app |
 | 8 | **LKR** | The currency, with the Sri Lankan flag | Opens the app |
@@ -78,8 +85,7 @@
 | 10 | **Chart** | The rate over the window: a mint line over a soft fill, dashed gridlines, and a dot on the newest point. Green when the window ends higher, red when it ends lower. Gaps in collection show as breaks, never as a made-up flat line | Opens the app |
 | 11 | **Time axis** | Hours for Day, weekdays for Week, dates for Month | Opens the app |
 
-Every widget remembers its own side and window, so you can keep a Sell widget and a
-Buy widget side by side, or one per chart window.
+Every widget remembers its own chart window, so you can keep one per window side by side.
 
 ### Sizes and layouts
 
@@ -93,8 +99,8 @@ picks the layout that fits:
 | Layout | When | What it shows |
 |---|---|---|
 | **Full card** | 250dp tall and 200dp wide or more (about 4x4 or 3x5 cells) | Everything in the anatomy above. Taller widgets give the chart more room; narrower ones shrink the type |
-| **Compact** | 110dp tall and 170dp wide or more (about 4x2 or 3x2 cells) | "USDT/LKR · Sell", the time and ⟳, the big rate, "per 1 USDT · sell rate", the trend chip and a chart (time labels appear when there is room). Tap the title to flip Sell/Buy |
-| **Strip / small** | Anything smaller (4x1, 2x1) | The side, the rate and the trend chip, plus a sparkline on the right when the strip is wide enough. Tap "Sell"/"Buy" to flip |
+| **Compact** | 110dp tall and 170dp wide or more (about 4x2 or 3x2 cells) | "USDT/LKR · Sell", the time and ⟳, the big rate, "per 1 USDT · sell rate · SL bank", the trend chip and a chart (time labels appear when there is room) |
+| **Strip / small** | Anything smaller (4x1, 2x1) | "Sell", the rate and the trend chip, plus a sparkline on the right when the strip is wide enough |
 
 Fitting rules that keep it readable on any phone:
 - Text sizes scale with the widget's width, and the big numerals shrink before they
@@ -105,10 +111,10 @@ Fitting rules that keep it readable on any phone:
   don't turn into pills.
 - On a narrow 2x1 the trend moves up next to the label instead of being cut off.
 
-### Day, Week, Month and Buy
+### Day, Week and Month
 
 <p align="center">
-  <img src="docs/images/widget-views.png" width="900" alt="The full widget showing Day, Week and Month charts and the Buy rate">
+  <img src="docs/images/widget-views.png" width="800" alt="The full widget showing Day, Week and Month charts">
 </p>
 
 | Window | Covers | Each point is | Axis |
@@ -119,9 +125,6 @@ Fitting rules that keep it readable on any phone:
 
 The trend chip always compares the start of the selected window with now, so the
 same widget can read ▲ 0.37% on Day and ▲ 0.99% on Month.
-
-**Buy rate** (right) is what you pay for 1 USDT. It is normally a little above the
-Sell rate; the gap is the market's spread.
 
 ### When the rate is out of date
 
@@ -136,13 +139,12 @@ rate. The chart keeps the gap as a break so it never pretends the rate stood sti
 
 ### Adding a widget
 
-1. Open **LKR P2P Rate** once, so it can collect its first rate.
-2. Long-press an empty spot on your home screen → **Widgets** → **LKR P2P Rate** →
+1. Open **RupeeRadar** once, so it can collect its first rate.
+2. Long-press an empty spot on your home screen → **Widgets** → **RupeeRadar** →
    drag **USDT/LKR Rate** onto the screen. Or use **Settings → Add a widget to the home
    screen** in the app.
 3. Long-press the widget and drag its handles to resize it. The layout changes as you go.
-4. Choose which side new widgets start on in **Settings → New widgets show**.
-5. To give one widget its own colour theme, long-press it and choose **Settings**
+4. To give one widget its own colour theme, long-press it and choose **Settings**
    (or **Reconfigure**, depending on the launcher).
 
 ---
@@ -215,17 +217,26 @@ everyday question, "what's the rate right now?", needs no taps at all.
   </tr>
 </table>
 
+### Launch screen
+
+<img src="docs/images/screen-splash.png" width="200" align="right" alt="The launch animation">
+
+Opening the app plays a short animation of the icon: the radar rings open, the sweep
+turns, the rate line draws itself and the blip lands, then the name fades in. It lasts
+about a second and a half, and the rate is already loading underneath. It only plays
+on a fresh start, not when you rotate the phone or come back to the app.
+
+<br clear="right">
+
 ### Rate (P2P tab)
 
 <img src="docs/images/screen-rate-full.png" width="260" align="right" alt="The whole Rate page">
 
 The home tab. Scroll down for more detail; pull down anywhere to refresh.
 
-- **Header**: the pair, the payment method being tracked
-  (Bank Transfer, Sri Lanka) and the ⚙ Settings button.
-- **Sell USDT / Buy USDT switch**: both live rates at once.
-  The selected side drives everything below it, and the line underneath says what it
-  means in plain words ("You give USDT and receive LKR in your bank").
+- **Header**: the pair, "Binance P2P · Sell · Bank Transfer (Sri Lanka)" and the
+  ⚙ Settings button, with a line saying what the number is: the best price a Sri Lanka
+  bank transfer seller pays for your USDT.
 - **Converter card**: see [Converter](#converter).
 - **Chart card**:
   - The title and change for the window, e.g. "Past 24 hours · +1.26 LKR · ▲ 0.38%".
@@ -234,12 +245,15 @@ The home tab. Scroll down for more detail; pull down anywhere to refresh.
     The header shows it while your finger is down.
   - **Low**, **High** and **Average** for the window.
 - **Market card**:
-  - **Buy – sell spread**.
+  - **Vs official rate**: how far the P2P rate sits above the official USD/LKR
+    reference rate, e.g. +12.90%. The reference rate itself is shown underneath.
   - **Top ad**: the headline price, even if it needs a large minimum.
   - **Median of top 10**: a steadier view of the market.
   - A one-line reminder of why the rate can differ from the top ad.
-- **Status line**: "Updated just now · refreshes every 15 min · pull down to refresh
-  now". It turns amber if the rate is stale.
+- **Your sellers** (once you've starred some on the Ads tab): each one's best live
+  price, and whether they can take your order size or aren't listed right now.
+- **Status line**: "Updated 12s ago · live every minute while open, every 15 min in
+  the background". It turns amber if the rate is stale.
 - **Widget tip**: shown only until you've added a widget.
 
 <br clear="right">
@@ -283,7 +297,7 @@ A converter for any pair, built for the everyday "how much is 250 dollars in rup
 
 ### Ads
 
-The live order book for the selected side and payment method.
+The live sell order book: ads from sellers who pay by Sri Lankan bank transfer.
 
 - **Order size chips** (100 / 500 / 1,000 / 5,000 USDT) re-filter the list instantly,
   without changing your saved setting.
@@ -295,18 +309,26 @@ The live order book for the selected side and payment method.
   - The advertiser and the price.
   - The rupee limits and the USDT available.
   - Orders this month, completion rate and payment window.
+- **☆ / ★** stars a seller, to follow their price under **Your sellers** on the P2P tab.
 - The best ad for your order is highlighted as **Best rate for your order**.
 - Ads that can't take your order are folded under "Show N ads that can't take this
   order". Each one says why: below the minimum, above the maximum, or not enough USDT.
+- With a [seller filter](#settings) on, sellers below your bar are folded under "Show N
+  ads below your seller filter" and don't count towards the rate.
 
 ### Alerts
 
-Get a notification when the rate reaches your target.
+Get a notification when the sell rate reaches your target, or moves sharply.
 
-- Tap **New alert** to choose the side, **Rises to** or **Falls to**, and the target.
-  The target is pre-filled from the live rate, with −1 / +1 buttons to nudge it.
-- Each alert reads like a sentence ("Sell rate rises to 332.00") with progress
-  underneath ("Now 331.00 · 1.00 to go").
+- Tap **New alert** and pick the kind:
+  - **Price target**: **Rises to** or **Falls to** a rate. The target is pre-filled
+    from the live rate, with −1 / +1 buttons to nudge it.
+  - **Sharp move**: the rate **Rises**, **Falls** or **Moves** (either way) by at least
+    a percentage you choose within **1, 6 or 24 hours**, measured from the oldest rate
+    collected in that window.
+- Each alert reads like a sentence ("Sell rate rises to 332.00", "Sell rate moves 1%
+  within 6 hours") with progress underneath ("Now 331.00 · 1.00 to go", "+0.35% over
+  the last 6h").
 - **Status** chips:
   - **Watching**: waiting for the rate to cross your target.
   - **Reached**: the alert has fired. It fires once, then re-arms when the rate
@@ -315,6 +337,18 @@ Get a notification when the rate reaches your target.
     switch back.
 - If notifications are turned off, a banner explains it and takes you to the switch.
 - Alerts are checked on the phone after every update. Nothing is sent to a server.
+
+### Notifications
+
+Two optional notifications carry the rate itself, separate from alerts. Both are off
+until you switch them on in **Settings → Notifications**, and both follow the same
+background checks, so they cost no extra battery.
+
+- **Rate in notification bar**: a quiet, persistent notification with the current sell
+  rate, its 24-hour change and the premium over the official rate, updated after
+  every check.
+- **Daily summary**: once a day, with the first check after 9:00, the last 24 hours'
+  low, high and average, the change and the premium over the official rate.
 
 ### Settings
 
@@ -326,10 +360,12 @@ Open with ⚙ on the P2P or Currencies tab.
 | **Widget theme** | Same as app, or any theme | Colours every widget that has no theme of its own |
 | **Widget background** | 100%, 85%, 70%, 50%, 30%, transparent | How much of the wallpaper shows through the widgets |
 | **Order size** | 100, 500, 1,000, 5,000 or any amount | Only ads that accept an order this big count towards the rate. Set it to roughly what you trade. Each size keeps its own history |
-| **Payment method** | Bank Transfer (Sri Lanka), Bank Transfer | Which ads are tracked |
+| **Minimum completion rate** | Any, 90%+, 95%+, 98%+ | Sellers who complete fewer of their orders don't count towards the rate |
+| **Minimum orders this month** | Any, 50+, 100+, 500+ | Sellers with less of a track record don't count towards the rate |
 | **Check for a new rate** | Every 15, 30 or 60 minutes | How often background updates run. No notification is shown |
 | **Battery use** | Shows Unrestricted or Optimised | Opens the system page where you can let the app run in the background. See [How often it updates](#how-often-it-updates) |
-| **New widgets show** | Sell rate, Buy rate | The starting side for widgets you add. Each widget can still flip on its own |
+| **Rate in notification bar** | On, off | See [Notifications](#notifications) |
+| **Daily summary** | On, off | See [Notifications](#notifications) |
 | **Add a widget to the home screen** | | Asks your launcher to place a widget (on launchers that support it) |
 | **Open source** | | Opens this repository |
 | **Export P2P history** | CSV | Shares every saved sample from the last 30 days |
@@ -338,22 +374,27 @@ Open with ⚙ on the P2P or Currencies tab.
 
 ## How the rate is worked out
 
+The app asks Binance for the 50 best **sell** ads from sellers who pay by **Sri Lankan
+bank transfer** (`payTypes: ["BankSriLanka"]`). Generic "Bank Transfer" ads, mobile
+top-ups and other payment methods are a different market and are never counted.
+
 P2P ads have minimum and maximum order sizes in rupees. The first ad in the list
 often needs an order far bigger than most people trade, so quoting it would be
 misleading. Instead:
 
 ```mermaid
 flowchart LR
-    A[Binance P2P<br>order book] --> B[Drop pinned<br>Promoted Ads to<br>their real place]
-    B --> C[Sort best first<br>Sell: highest price<br>Buy: lowest price]
-    C --> D{Does the ad accept<br>your order size?<br>min ≤ order ≤ max<br>and enough USDT}
+    A[Binance P2P sell book<br>Sri Lanka bank<br>transfer only] --> B[Drop pinned<br>Promoted Ads to<br>their real place]
+    B --> C[Sort best first:<br>highest price]
+    C --> S{Seller passes<br>your seller filter?}
+    S -- no --> C
+    S -- yes --> D{Does the ad accept<br>your order size?<br>min ≤ order ≤ max<br>and enough USDT}
     D -- no --> C
     D -- yes --> E[That ad's price<br>= rate for 1 USDT]
-    E --> F[Widget, app,<br>chart and alerts]
+    E --> F[Widget, app,<br>chart, alerts and<br>notifications]
 ```
 
-- **Sell USDT**: you give USDT and receive rupees. The best ad pays the most.
-- **Buy USDT**: you pay rupees and receive USDT. The best ad charges the least.
+- **Sell USDT**: you give USDT and receive rupees in your bank. The best ad pays the most.
 - Binance pins "Promoted Ad" listings at the top regardless of price. They are put
   back in price order before anything is picked.
 - Everything is shown **per 1 USDT**. The order size (500 USDT by default) only decides
@@ -367,12 +408,16 @@ flowchart LR
 flowchart LR
     W[Every 15 min<br>alarm that also<br>fires in Doze] --> P
     B[WorkManager<br>backstop] --> P
-    O[Opening the app<br>if over 1 min old] --> P
+    O[Opening the app<br>if over 1 min old,<br>then every minute<br>while it's open] --> P
     R[Pull to refresh<br>or ⟳ on a widget] --> P
-    P[Fetch Sell and Buy<br>from Binance] --> S[(History on<br>the phone)]
+    P[Fetch the sell book<br>from Binance] --> S[(History on<br>the phone)]
     S --> G[Widgets redraw]
     S --> L[Alerts checked]
+    S --> N[Notifications<br>updated]
 ```
+
+- **While the app is open it fetches a new rate every minute**, without the
+  pull-to-refresh spinner, and the status line counts the seconds since the last one.
 
 - **15 minutes is the shortest interval Android allows** for ordinary background work.
   Anything faster needs a foreground service, which means a permanent notification,
@@ -388,8 +433,6 @@ flowchart LR
   dashed line, so the chart reads as one series. No price is invented for that time.
 - **Exchange rates** change once a day, so they are checked every few hours along with
   the P2P rate.
-- Both sides are collected every time, so any widget can flip without a gap in its
-  history.
 
 ---
 
@@ -413,7 +456,7 @@ Not affiliated with Binance. Not financial advice.
 
 ## Open source
 
-LKR P2P Rate is free and open source under the [MIT License](LICENSE). You may use,
+RupeeRadar is free and open source under the [MIT License](LICENSE). You may use,
 copy, change and share the code, including in your own apps, as long as the copyright
 notice and license text come with it. Bug reports, ideas and pull requests are welcome
 in [Issues](https://github.com/ruchira-edirisinghe/p2p-lkr-widget-app/issues).
@@ -516,7 +559,7 @@ now if you want a different one.
 
 1. Create a developer account at <https://play.google.com/console> (one-time US$25;
    identity verification takes a few days).
-2. **Create app**: name "LKR P2P Rate", App, Free.
+2. **Create app**: name "RupeeRadar", App, Free.
 3. Upload `app-release.aab` and enrol in **Play App Signing** (the default). Google holds
    the real signing key; yours is only the upload key.
 4. **Store listing**: icon `play/icon-512.png`, feature graphic
@@ -546,22 +589,25 @@ Things that get rate apps rejected, and how this one avoids them:
 <summary><b>Suggested listing text</b></summary>
 
 **Short description (80 chars):**
-USDT/LKR P2P rate and currency exchange widgets with charts, alerts and themes.
+USDT/LKR P2P sell rate and exchange-rate widgets with charts, alerts and themes.
 
 **Full description:**
 
-See the real USDT/LKR P2P rate right on your home screen.
+See the real USDT/LKR P2P sell rate right on your home screen.
 
-LKR P2P Rate reads the public P2P order book and shows the best rate you can
-actually get for your order size, not the top advert that needs a minimum you
-can't meet.
+RupeeRadar reads the public P2P order book and shows the best price a Sri Lanka
+bank transfer seller will actually pay for your USDT at your order size, not the
+top advert that needs a minimum you can't meet.
 
 • Resizable home-screen widget, from a slim strip to a full card
 • Day, week and month trend chart, right on the widget
-• Switch between selling and buying with one tap
+• The premium over the official USD/LKR rate at a glance
+• Live updates every minute while the app is open
 • USDT ⇄ LKR converter priced from real adverts
 • Full order book with the best usable advert highlighted
-• Alerts when the rate rises above or falls below your target
+• Optional seller filter by completion rate and track record
+• Star your favourite sellers and follow their prices
+• Alerts on a target rate or a sharp move, plus an optional daily summary
 • Exchange Rate widget and converter for 300+ currencies (USD, EUR, GBP, AED…)
 • Nine colour themes, including Material You and OLED black, with adjustable widget transparency
 • Export your rate history as CSV
