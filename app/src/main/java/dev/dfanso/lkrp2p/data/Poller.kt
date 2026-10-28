@@ -82,13 +82,20 @@ class Poller(
 
     companion object {
         private val gate = Mutex()
+
+        /**
+         * Binance accepts up to 50. Only 20 left large orders (and, with the
+         * seller filter, picky ones) with no rate even when a seller further
+         * down the book could fill them.
+         */
+        const val BOOK_ROWS = 50
     }
 
     private suspend fun fetchWithOneRetry(side: Side) = try {
-        source.fetch(side, settings.fiat, settings.payment, 20)
+        source.fetch(side, settings.fiat, settings.payment, BOOK_ROWS)
     } catch (e: Exception) {
         if (retryDelayMs > 0) delay(retryDelayMs)
-        source.fetch(side, settings.fiat, settings.payment, 20)
+        source.fetch(side, settings.fiat, settings.payment, BOOK_ROWS)
     }
 
     private fun evaluateAlerts(side: Side, amount: Int, price: Double, nowSec: Long) {
