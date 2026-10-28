@@ -40,7 +40,11 @@ object Formatting {
     fun percent(value: Double): String =
         String.format(Locale.US, if (value > 0) "+%.2f%%" else "%.2f%%", value)
 
-    fun usdt(amount: Double): String = "${wholeFormat.format(amount)} USDT"
+    /** Whole USDT, except small fractional amounts: 0.4 USDT left must not read "0 USDT". */
+    fun usdt(amount: Double): String {
+        val fractional = amount < 100 && amount != kotlin.math.floor(amount)
+        return "${if (fractional) priceFormat.format(amount) else wholeFormat.format(amount)} USDT"
+    }
 
     fun relativeAge(timestampSec: Long, nowSec: Long = System.currentTimeMillis() / 1000): String {
         val seconds = nowSec - timestampSec
